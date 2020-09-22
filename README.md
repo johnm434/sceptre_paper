@@ -30,3 +30,6 @@ bash bash_scripts/build_and_install_package.bash
 ```
 Be sure to run this script from within the cloned *sceptre_paper* directory.
 
+### Learning to use **sceptre**
+
+Have a look at the[Getting up-and-running with sceptre](https://github.com/Timothy-Barry/sceptre_paper/sceptre/vignettes/sceptre-basics.html) vignette.
