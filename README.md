@@ -32,4 +32,6 @@ Be sure to run this script from within the cloned *sceptre_paper* directory.
 
 ### Learning to use **sceptre**
 
-Have a look at the[Getting up-and-running with sceptre](https://github.com/Timothy-Barry/sceptre_paper/sceptre/vignettes/sceptre-basics.html) vignette.
+Several vignettes are available to help users get started with **sceptre**.
+
+* [Getting up-and-running with sceptre](https://github.com/Timothy-Barry/sceptre_paper/sceptre/vignettes/sceptre-basics.html)
