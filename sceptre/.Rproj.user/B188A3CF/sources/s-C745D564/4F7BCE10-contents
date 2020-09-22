@@ -1,0 +1,144 @@
+#' Generate simulation object
+#'
+#' Generates an object for use in simulation.
+#'
+#' @param n number of cells
+#' @param mRNA_lib_range range of library sizes for mRNA
+#' @param gRNA_lib_range range of library sizes for gRNA
+#' @param mRNA_fam family used to model the mRNA
+#' @param gRNA_fam family used to model the gRNA
+#' @param pi fraction of cells that receive perturbation
+#' @param covariate_sampler list of functions. Each function should take as an argument number of samples, and return that number of samples. These samples will be used as covariates. If null, no covariates.
+#' @param mRNA_coefs coefficients for the mRNA model
+#' @param gRNA_coefs coefficients for the gRNA model
+#' @param gRNA_zero_inflated is the gRNA model zero-inflated (or does it have background reads)?
+#' @param initialize_Ti1_factory function factory to initialize the weights, or, if the method is "thresholding", perturbation indicators. The function outputted by the factory should take arguments (g_tilde, g_tilde_plus) and output a binary (i.e., 0/1) vector of length g_tilde.
+#' @param function_factory_args a matrix of arguments to pass to the function factory. The algorithm will be re-run for each row of this matrix.
+#' @param method a string indicating the method to use (options are "EM" and "threshold")
+#'
+#' @return a simulation object
+#' @export
+#'
+#' @examples
+#' simulation_object <- generate_simulation_object(n = 5000,
+#' mRNA_lib_range = c(500, 1000),
+#' gRNA_lib_range = c(50, 250),
+#' mRNA_fam = negative.binomial(2),
+#' gRNA_fam = negative.binomial(2),
+#' pi = 0.4,
+#' covariate_sampler = NULL,
+#' mRNA_coefs = c(1, 3),
+#' gRNA_coefs = c(1/2, 2),
+#' gRNA_zero_inflated = FALSE,
+#' initialize_Ti1_factory = initialize_Ti1_factory,
+#' function_factory_args = matrix(data = c(0.3, 0.4, 0.5, 0.4, 0.3, seq(0, 0.25, length.out = 5)), ncol = 2),
+#' method = "EM")
+#' #############################
+#' simulation_object <- generate_simulation_object(n = 5000,
+#' mRNA_lib_range = c(1000, 1000),
+#' gRNA_lib_range = c(50, 50),
+#' mRNA_fam = negative.binomial(2),
+#' gRNA_fam = negative.binomial(2),
+#' pi = 0.2,
+#' covariate_sampler = NULL,
+#' mRNA_coefs = c(-3, -2),
+#' gRNA_coefs = c(1/2),
+#' gRNA_zero_inflated = TRUE,
+#' initialize_Ti1_factory = initialize_Ti1_factory_absolute,
+#' function_factory_args = matrix(data = c(1, 0), ncol = 2),
+#' method = "threshold")
+
+generate_simulation_object <- function(n, mRNA_lib_range, gRNA_lib_range, mRNA_fam, gRNA_fam, pi, covariate_sampler, mRNA_coefs, gRNA_coefs, gRNA_zero_inflated, initialize_Ti1_factory, function_factory_args, method) {
+  if(!(method %in% c("EM", "threshold"))) stop("Method must be either 'EM' or 'threshold'.")
+  m_tilde_plus <- runif(n, min = mRNA_lib_range[1], max = mRNA_lib_range[2]) %>% round()
+  g_tilde_plus <- runif(n, min = gRNA_lib_range[1], max = gRNA_lib_range[2]) %>% round()
+  mRNA_fam <- mRNA_fam %>% augment_family_object
+  gRNA_fam <- gRNA_fam %>% augment_family_object
+  data_sampler <- function() {
+    return(generate_data_from_model(n = n, m_tilde_plus = m_tilde_plus, g_tilde_plus = g_tilde_plus, mRNA_fam = mRNA_fam, gRNA_fam = gRNA_fam, pi = pi, covariate_sampler = covariate_sampler, mRNA_coefs = mRNA_coefs, gRNA_coefs = gRNA_coefs, gRNA_zero_inflated = gRNA_zero_inflated))
+  }
+  return(list(n = n, m_tilde_plus = m_tilde_plus, g_tilde_plus = g_tilde_plus, mRNA_fam = mRNA_fam, gRNA_fam = gRNA_fam, pi = pi, mRNA_coefs = mRNA_coefs, gRNA_coefs = gRNA_coefs, gRNA_zero_inflated = gRNA_zero_inflated, initialize_Ti1_factory = initialize_Ti1_factory, function_factory_args = function_factory_args, data_sampler = data_sampler, method = method))
+}
+
+#' Run simulation n times
+#'
+#' Runs the simulation defined by a simulation object.
+#'
+#' @param simulation_object an output of the generate simulation object function
+#' @param n_simulations number of simulations to run
+#'
+#' @return a dataframe containing the results of the simulation experiments
+#' @export
+#'
+#' @examples
+#' simulation_object <- generate_simulation_object(n = 5000,
+#' mRNA_lib_range = c(500, 1000),
+#' gRNA_lib_range = c(50, 250),
+#' mRNA_fam = negative.binomial(2),
+#' gRNA_fam = poisson(),
+#' pi = 0.4,
+#' covariate_sampler = NULL,
+#' mRNA_coefs = c(1, 3),
+#' gRNA_coefs = c(1/2, 2),
+#' gRNA_zero_inflated = FALSE,
+#' initialize_Ti1_factory = initialize_Ti1_factory,
+#' function_factory_args = matrix(data = c(rep(0.4, 5), seq(0, 0.25, length.out = 5)), ncol = 2),
+#' method = "EM")
+#' res <- run_simulation_n_times(simulation_object, 3)
+#' ########################
+#' simulation_object <- generate_simulation_object(n = 5000,
+#' mRNA_lib_range = c(500, 1000),
+#' gRNA_lib_range = c(50, 250),
+#' mRNA_fam = negative.binomial(2),
+#' gRNA_fam = poisson(),
+#' pi = 0.4,
+#' covariate_sampler = list(cell_cycle = function(n) {runif(n = n, min = 0, max = 1)}),
+#' mRNA_coefs = c(1, 3, 1.5),
+#' gRNA_coefs = c(1/2, 2),
+#' gRNA_zero_inflated = TRUE,
+#' initialize_Ti1_factory = initialize_Ti1_factory,
+#' function_factory_args = matrix(data = c(rep(0.4, 5), seq(0, 0.25, length.out = 5)), ncol = 2),
+#' method = "EM")
+#' res <- run_simulation_n_times(simulation_object, 3)
+
+run_simulation_n_times <- function(simulation_object, n_simulations) {
+  method <- simulation_object$method
+  if (method == "EM") {
+    ret <- map_dfr(.x = 1:n_simulations, .f = function(i) {
+      print(paste0("Sim rep ", i))
+      dat <- simulation_object$data_sampler()
+      result <- run_em_algo_multiple_times(m_tilde = dat$m_tilde,
+                                         g_tilde = dat$g_tilde,
+                                         m_tilde_plus = simulation_object$m_tilde_plus,
+                                         g_tilde_plus = simulation_object$g_tilde_plus,
+                                         covariate_matrix = dat$covariate_matrix,
+                                         mRNA_fam = simulation_object$mRNA_fam,
+                                         gRNA_fam = simulation_object$gRNA_fam,
+                                         gRNA_zero_inflated = simulation_object$gRNA_zero_inflated,
+                                         initialize_Ti1_factory = simulation_object$initialize_Ti1_factory,
+                                         function_factory_args = simulation_object$function_factory_args)
+      if (is.character(result) && result == "No convergence across initializations.") {
+        out <- NULL
+      } else {
+        out <- get_ses_from_fit_em(res = result)$coef_table %>% mutate(rep_id = i)
+      }
+      return(out)
+      })
+  }
+  if (method == "threshold") {
+    ret <- map_dfr(.x = 1:n_simulations, .f = function(i) {
+      curr_args_to_init_funct_factory <- as.list(simulation_object$function_factory_args[1,])
+      curr_initialize_Ti1 <- do.call(simulation_object$initialize_Ti1_factory, curr_args_to_init_funct_factory)
+      dat <- simulation_object$data_sampler()
+      result <- run_threshold_algorithm(m_tilde = dat$m_tilde,
+                                    g_tilde = dat$g_tilde,
+                                    m_tilde_plus = simulation_object$m_tilde_plus,
+                                    g_tilde_plus = simulation_object$g_tilde_plus,
+                                    covariate_matrix = dat$covariate_matrix,
+                                    mRNA_fam = simulation_object$mRNA_fam,
+                                    set_perturbation_indicator = curr_initialize_Ti1)
+      get_ses_from_fit_threshold(result) %>% mutate(rep_id = i)
+      })
+    }
+  return(ret)
+}

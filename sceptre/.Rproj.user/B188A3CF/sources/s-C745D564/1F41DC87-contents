@@ -1,0 +1,88 @@
+#' Simulate data from model.
+#'
+#' @param n number of cells
+#' @param m_tilde_plus total mRNA library size
+#' @param g_tilde_plus total gRNA library size
+#' @param mRNA_fam family object for mRNA
+#' @param gRNA_fam family object for gRNA
+#' @param pi probability of success of perturbation
+#' @param covariate_sampler list of functions. Each function should take as an argument number of samples, and return that number of samples. These samples will be used as covariates. If null, no covariates.
+#' @param mRNA_coefs A vector of coefficients for the mRNA model. By default, the first coefficient is for the intercept and the second is for the perturbation indicator. A total of p+2 coefficients are required, where p is the number of variables determined by the covariate sampler function.
+#' @param gRNA_coefs Same as above, but for the gRNA model. The total number of coariates is p+2 when gRNA_zero_inflated = FALSE, and p+1 when gRNA_zero_inflated=TRUE.
+#' @param gRNA_zero_inflated is the gRNA data zero-inflated (true or false)
+#'
+#' @return a list containing (i) the covariate matrix (including a column for the perturbation indicator), (ii) the m_tildes, (iii) the g_tildes.
+#' @export
+#'
+#' @examples
+#' n <- 10000
+#' mRNA_lib_range <- c(800, 1200)
+#' gRNA_lib_range <- c(800, 1200)
+#' m_tilde_plus <- runif(n, min = mRNA_lib_range[1], max = mRNA_lib_range[2]) %>% round()
+#' g_tilde_plus <- runif(n, min = gRNA_lib_range[1], max = gRNA_lib_range[2]) %>% round()
+#' mRNA_fam <- negative.binomial(2) %>% augment_family_object
+#' gRNA_fam <- negative.binomial(2) %>% augment_family_object
+#' pi <- 0.5
+#' covariate_sampler <- list(
+#'  batch = function(n) {factor(sample(x = c("batch_1", "batch_2", "batch_3"), size = n, replace = TRUE))},
+#'  cell_cycle = function(n) {runif(n = n, min = 0, max = 1)}
+#' )
+#' mRNA_coefs <- c(0, 2, 3, -1, -1)
+#' gRNA_coefs <- c(1, 1, 3, -1, -1/2)
+#' gRNA_zero_inflated <- FALSE
+#' simulated_data <- generate_data_from_model(n = n, m_tilde_plus = m_tilde_plus, g_tilde_plus = g_tilde_plus, mRNA_fam = mRNA_fam, gRNA_fam = gRNA_fam, pi = pi, covariate_sampler = covariate_sampler, mRNA_coefs = mRNA_coefs, gRNA_coefs = gRNA_coefs, gRNA_zero_inflated = gRNA_zero_inflated)
+#' ##############################
+#' n <- 10000
+#' mRNA_lib_range <- c(800, 1200)
+#' gRNA_lib_range <- c(100,100)
+#' m_tilde_plus <- runif(n, min = mRNA_lib_range[1], max = mRNA_lib_range[2]) %>% round()
+#' g_tilde_plus <- runif(n, min = gRNA_lib_range[1], max = gRNA_lib_range[2]) %>% round()
+#' mRNA_fam <- negative.binomial(2) %>% augment_family_object
+#' gRNA_fam <- negative.binomial(2) %>% augment_family_object
+#' pi <- 0.5
+#' covariate_sampler <- NULL
+#' mRNA_coefs <- c(0, 3)
+#' gRNA_coefs <- -5
+#' gRNA_zero_inflated <- TRUE
+#' simulated_data <- generate_data_from_model(n = n, m_tilde_plus = m_tilde_plus, g_tilde_plus = g_tilde_plus, mRNA_fam = mRNA_fam, gRNA_fam = gRNA_fam, pi = pi, covariate_sampler = covariate_sampler, mRNA_coefs = mRNA_coefs, gRNA_coefs = gRNA_coefs, gRNA_zero_inflated = gRNA_zero_inflated)
+
+generate_data_from_model <- function(n, m_tilde_plus, g_tilde_plus, mRNA_fam, gRNA_fam, pi, covariate_sampler, mRNA_coefs, gRNA_coefs, gRNA_zero_inflated) {
+  # generate the covariate matrix (perturbation and confounder)
+  perturbations <- sample(x = 0:1, size = n, replace = TRUE, prob = c(1 - pi, pi))
+  if (!is.null(covariate_sampler)) {
+    dat <- map_dfr(.x = covariate_sampler, function(f) {f(n)}) %>%
+      mutate(perturbation = perturbations) %>% select(perturbation, everything())
+  } else {
+    dat <- tibble(perturbation = perturbations)
+  }
+  formula <- paste0("~", paste0(colnames(dat), collapse = " + ")) %>% as.formula
+  cov_model <- model.matrix(formula, data = dat)
+
+  # simulate the data
+  sim_data <- function(coefs, fam, lib_sizes, cov_model) {
+    l_is <- (cov_model %*% coefs) + log(lib_sizes)
+    mu_is <- fam$linkinv(l_is)
+    y <- fam$simulate_from_mus(mu_is)
+    return(y)
+  }
+  sim_data_zero_inf <- function(coefs, fam, lib_sizes, cov_model) {
+    cov_model_no_pert <- cov_model[,-which(colnames(cov_model) == "perturbation"), drop = FALSE]
+    pert <- cov_model[,"perturbation"]
+    y <- sim_data(coefs, fam, lib_sizes[pert == 1], cov_model_no_pert[pert == 1, ,drop = FALSE])
+    pert[pert == 1] <- y
+    names(pert) <- NULL
+    return(pert)
+  }
+
+  m_tilde <- sim_data(mRNA_coefs, mRNA_fam, m_tilde_plus, cov_model)
+  if (gRNA_zero_inflated) {
+    g_tilde <- sim_data_zero_inf(gRNA_coefs, gRNA_fam, g_tilde_plus, cov_model)
+  } else {
+    g_tilde <- sim_data(gRNA_coefs, gRNA_fam, g_tilde_plus, cov_model)
+  }
+
+  dat <- dat %>% select(-perturbation)
+  if (is_empty(dat)) {dat <- NULL}
+
+  return(list(covariate_matrix = dat, m_tilde = m_tilde, g_tilde = g_tilde))
+}
