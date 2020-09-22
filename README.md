@@ -1,6 +1,6 @@
 ## SCEPTRE package and manuscript code
 
-This repository contains the **sceptre** R package and the code required to reproduce the analyses reported in Katsevich et al. 2020. Users can download and use the **sceptre** package independently of the Katsevich et al. 2020 analysis code.
+This repository contains the **sceptre** R package and the code required to reproduce the analyses reported in Katsevich et al. 2020. Users can download and use the **sceptre** package independently of the manuscript analysis code.
 
 ### Downloading and installing **sceptre**
 
@@ -34,4 +34,4 @@ Be sure to run this script from within the cloned *sceptre_paper* directory.
 
 Several vignettes are available to help users get started with **sceptre**.
 
-* [Getting up-and-running with sceptre](https://github.com/Timothy-Barry/sceptre_paper/blob/master/sceptre/vignettes/sceptre-basics.html)
+* [Getting up-and-running with sceptre](https://htmlpreview.github.io/?https://github.com/Timothy-Barry/sceptre_paper/blob/master/sceptre/vignettes/sceptre-basics.html)
