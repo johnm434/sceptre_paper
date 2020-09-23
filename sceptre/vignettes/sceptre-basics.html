@@ -319,8 +319,50 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 
 
 
+<p>This vignette helps users get up-and-running with the <strong>sceptre</strong> R package. We explain how to use <strong>sceptre</strong> to analyze single-cell pooled CRISPR screen data. We use simulated and real datasets as examples. To download <strong>sceptre</strong>, follow the instructions in the <strong>sceptre</strong> <a href="https://github.com/Timothy-Barry/sceptre_paper">Github repository</a>.</p>
+<p>Load the package.</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1"></a><span class="kw">library</span>(sceptre)</span></code></pre></div>
-<p>Welcome to this vignette.</p>
+<div id="simulate-data" class="section level2">
+<h2>Simulate data</h2>
+<p>We can simulate data using the <strong>simulate_crispr_screen_data</strong> function. Here, we simulate a dataset with the following parameters:</p>
+<ul>
+<li><em>Number of cells</em>: 1000</li>
+<li><em>Probability of gRNA perturbation (absent covariates)</em>: 0.2</li>
+<li><em>Covariates</em>: cell size (distributed as N(0,1)) and cell cycle (distributed as U(0,1)).</li>
+<li><em>mRNA mean expression (absent covariates)</em>: 40</li>
+<li><em>gRNA effect on expression</em>: -4</li>
+<li><em>covariate effects</em>: 0.5 (for cell size) and 1 (for cell cycle)</li>
+<li><em>zero inflation rate</em>: 0</li>
+<li><em>negative binomial size parameter</em>: 2</li>
+</ul>
+<p>The covariates and the gRNA presence indicator are dependent; in particular, the gRNA presence indicator is modeled as a logistic GLM of the covariates. For simplicity we do not include total cell UMI count (i.e., library size) in this simulation. In practice we would use cell UMI count as a covariate.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1"></a>simulated_data &lt;-<span class="st"> </span><span class="kw">simulate_crispr_screen_data</span>(<span class="dt">num_cells =</span> <span class="dv">1000</span>, </span>
+<span id="cb2-2"><a href="#cb2-2"></a><span class="dt">grna_mean_prob =</span> <span class="fl">0.2</span>, </span>
+<span id="cb2-3"><a href="#cb2-3"></a><span class="dt">covariate_sampler =</span> <span class="kw">list</span>(<span class="dt">cell_size =</span> rnorm, <span class="dt">cell_cycle =</span> runif),</span>
+<span id="cb2-4"><a href="#cb2-4"></a><span class="dt">mRNA_mean_expression =</span> <span class="dv">40</span>, </span>
+<span id="cb2-5"><a href="#cb2-5"></a><span class="dt">gRNA_effect =</span> <span class="dv">-4</span>, </span>
+<span id="cb2-6"><a href="#cb2-6"></a><span class="dt">covariate_effects =</span> <span class="kw">c</span>(<span class="fl">0.5</span>, <span class="dv">1</span>), </span>
+<span id="cb2-7"><a href="#cb2-7"></a><span class="dt">zero_inflation =</span> <span class="dv">0</span>, </span>
+<span id="cb2-8"><a href="#cb2-8"></a><span class="dt">neg_binom_size =</span> <span class="dv">2</span>)</span></code></pre></div>
+<p>The output of this function is a list of three elements: the expression vector <em>Y</em>, the covariate data frame, and the gRNA presence indicator <em>X</em>. Let’s peek at these elements.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1"></a><span class="kw">map</span>(simulated_data, head)</span>
+<span id="cb3-2"><a href="#cb3-2"></a><span class="co">#&gt; $Y</span></span>
+<span id="cb3-3"><a href="#cb3-3"></a><span class="co">#&gt; [1] 139  73  16   0   0 247</span></span>
+<span id="cb3-4"><a href="#cb3-4"></a><span class="co">#&gt; </span></span>
+<span id="cb3-5"><a href="#cb3-5"></a><span class="co">#&gt; $covariate_df</span></span>
+<span id="cb3-6"><a href="#cb3-6"></a><span class="co">#&gt; # A tibble: 6 x 2</span></span>
+<span id="cb3-7"><a href="#cb3-7"></a><span class="co">#&gt;   cell_size cell_cycle</span></span>
+<span id="cb3-8"><a href="#cb3-8"></a><span class="co">#&gt;       &lt;dbl&gt;      &lt;dbl&gt;</span></span>
+<span id="cb3-9"><a href="#cb3-9"></a><span class="co">#&gt; 1    0.243       0.713</span></span>
+<span id="cb3-10"><a href="#cb3-10"></a><span class="co">#&gt; 2    1.20        0.933</span></span>
+<span id="cb3-11"><a href="#cb3-11"></a><span class="co">#&gt; 3    0.490       0.153</span></span>
+<span id="cb3-12"><a href="#cb3-12"></a><span class="co">#&gt; 4   -0.115       0.531</span></span>
+<span id="cb3-13"><a href="#cb3-13"></a><span class="co">#&gt; 5   -0.0850      0.572</span></span>
+<span id="cb3-14"><a href="#cb3-14"></a><span class="co">#&gt; 6    0.751       0.796</span></span>
+<span id="cb3-15"><a href="#cb3-15"></a><span class="co">#&gt; </span></span>
+<span id="cb3-16"><a href="#cb3-16"></a><span class="co">#&gt; $X</span></span>
+<span id="cb3-17"><a href="#cb3-17"></a><span class="co">#&gt; [1] 0 0 0 1 1 0</span></span></code></pre></div>
+</div>
 
 
 

@@ -44,5 +44,5 @@ simulate_crispr_screen_data <- function(num_cells, grna_mean_prob, covariate_sam
   Y <- Y * rbinom(n = num_cells,
                  size = 1,
                  prob = 1 - zero_inflation)
-  return(list(Y = Y, covariate_matrix = dat, X = X))
+  return(list(Y = Y, covariate_df = dat, X = X))
 }

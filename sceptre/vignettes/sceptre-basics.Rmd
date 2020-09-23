@@ -1,5 +1,6 @@
 ---
 title: "Getting up-and-running with sceptre"
+authors: Tim Barry, Gene Katsevich, Kathryn Roeder
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{sceptre-basics}
@@ -14,9 +15,44 @@ knitr::opts_chunk$set(
 )
 ```
 
+This vignette helps users get up-and-running with the **sceptre** R package. We explain how to use **sceptre** to analyze single-cell pooled CRISPR screen data. We use simulated and real datasets as examples. To download **sceptre**, follow the instructions in the **sceptre** [Github repository](https://github.com/Timothy-Barry/sceptre_paper).
+
+Load the package.
+
 ```{r setup}
 library(sceptre)
 ```
 
+## Simulate data
 
-Welcome to this vignette.
+We can simulate data using the **simulate_crispr_screen_data** function. Here, we simulate a dataset with the following parameters:
+
+* *Number of cells*: 1000
+* *Probability of gRNA perturbation (absent covariates)*: 0.2
+* *Covariates*: cell size (distributed as N(0,1)) and cell cycle (distributed as U(0,1)).
+* *mRNA mean expression (absent covariates)*: 40
+* *gRNA effect on expression*: -4
+* *covariate effects*: 0.5 (for cell size) and 1 (for cell cycle)
+* *zero inflation rate*: 0
+* *negative binomial size parameter*: 2
+
+The covariates and the gRNA presence indicator are dependent; in particular, the gRNA presence indicator is modeled as a logistic GLM of the covariates. For simplicity we do not include total cell UMI count (i.e., library size) in this simulation. In practice we would use cell UMI count as a covariate.
+
+```{r}
+simulated_data <- simulate_crispr_screen_data(num_cells = 1000, 
+grna_mean_prob = 0.2, 
+covariate_sampler = list(cell_size = rnorm, cell_cycle = runif),
+mRNA_mean_expression = 40, 
+gRNA_effect = -4, 
+covariate_effects = c(0.5, 1), 
+zero_inflation = 0, 
+neg_binom_size = 2)
+```
+
+The output of this function is a list of three elements: the expression vector *Y*, the covariate data frame, and the gRNA presence indicator *X*. Let's peek at these elements.
+
+```{r}
+map(simulated_data, head)
+```
+
+
