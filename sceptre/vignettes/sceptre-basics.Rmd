@@ -55,4 +55,4 @@ The output of this function is a list of three elements: the expression vector *
 map(simulated_data, head)
 ```
 
-
+We can run the sceptre algorithm on these data to test 

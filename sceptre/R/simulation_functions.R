@@ -33,7 +33,7 @@ simulate_crispr_screen_data <- function(num_cells, grna_mean_prob, covariate_sam
   dat <- map_dfr(.x = covariate_sampler, function(f) f(num_cells))
   formula <- paste0("~", paste0(colnames(dat), collapse = " + ")) %>% as.formula
   cov_model <- model.matrix(formula, data = dat)
-  l_i_g <- as.numeric(cov_model %*% c(logitlink(grna_mean_prob), covariate_effects))
+  l_i_g <- as.numeric(cov_model %*% c(binomial()$linkfun(grna_mean_prob), covariate_effects))
   pi_true <-  1/(1 + exp(-(l_i_g)))
   X <- rbinom(n = num_cells, size = 1, prob = pi_true)
   updated_cov_model <- cbind(cov_model, X)

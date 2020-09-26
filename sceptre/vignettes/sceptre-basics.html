@@ -347,21 +347,22 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 <p>The output of this function is a list of three elements: the expression vector <em>Y</em>, the covariate data frame, and the gRNA presence indicator <em>X</em>. Let’s peek at these elements.</p>
 <div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1"></a><span class="kw">map</span>(simulated_data, head)</span>
 <span id="cb3-2"><a href="#cb3-2"></a><span class="co">#&gt; $Y</span></span>
-<span id="cb3-3"><a href="#cb3-3"></a><span class="co">#&gt; [1] 139  73  16   0   0 247</span></span>
+<span id="cb3-3"><a href="#cb3-3"></a><span class="co">#&gt; [1] 149   7 106   2   3   2</span></span>
 <span id="cb3-4"><a href="#cb3-4"></a><span class="co">#&gt; </span></span>
 <span id="cb3-5"><a href="#cb3-5"></a><span class="co">#&gt; $covariate_df</span></span>
 <span id="cb3-6"><a href="#cb3-6"></a><span class="co">#&gt; # A tibble: 6 x 2</span></span>
 <span id="cb3-7"><a href="#cb3-7"></a><span class="co">#&gt;   cell_size cell_cycle</span></span>
 <span id="cb3-8"><a href="#cb3-8"></a><span class="co">#&gt;       &lt;dbl&gt;      &lt;dbl&gt;</span></span>
-<span id="cb3-9"><a href="#cb3-9"></a><span class="co">#&gt; 1    0.243       0.713</span></span>
-<span id="cb3-10"><a href="#cb3-10"></a><span class="co">#&gt; 2    1.20        0.933</span></span>
-<span id="cb3-11"><a href="#cb3-11"></a><span class="co">#&gt; 3    0.490       0.153</span></span>
-<span id="cb3-12"><a href="#cb3-12"></a><span class="co">#&gt; 4   -0.115       0.531</span></span>
-<span id="cb3-13"><a href="#cb3-13"></a><span class="co">#&gt; 5   -0.0850      0.572</span></span>
-<span id="cb3-14"><a href="#cb3-14"></a><span class="co">#&gt; 6    0.751       0.796</span></span>
+<span id="cb3-9"><a href="#cb3-9"></a><span class="co">#&gt; 1   -0.0987      0.901</span></span>
+<span id="cb3-10"><a href="#cb3-10"></a><span class="co">#&gt; 2    1.51        0.461</span></span>
+<span id="cb3-11"><a href="#cb3-11"></a><span class="co">#&gt; 3    1.15        0.542</span></span>
+<span id="cb3-12"><a href="#cb3-12"></a><span class="co">#&gt; 4    2.11        0.575</span></span>
+<span id="cb3-13"><a href="#cb3-13"></a><span class="co">#&gt; 5    1.89        0.910</span></span>
+<span id="cb3-14"><a href="#cb3-14"></a><span class="co">#&gt; 6   -0.530       0.534</span></span>
 <span id="cb3-15"><a href="#cb3-15"></a><span class="co">#&gt; </span></span>
 <span id="cb3-16"><a href="#cb3-16"></a><span class="co">#&gt; $X</span></span>
-<span id="cb3-17"><a href="#cb3-17"></a><span class="co">#&gt; [1] 0 0 0 1 1 0</span></span></code></pre></div>
+<span id="cb3-17"><a href="#cb3-17"></a><span class="co">#&gt; [1] 0 1 0 1 1 1</span></span></code></pre></div>
+<p>We can run the sceptre algorithm on these data to test</p>
 </div>
 
 
