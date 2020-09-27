@@ -15,6 +15,7 @@
 #' @return a p-value of the null hypothesis of no gRNA effect on gene expression
 run_sceptre_using_precomp <- function(expressions, gRNA_indicators, gRNA_precomp, gene_precomp_dispersion, gene_precomp_offsets, B, seed) {
   if (!is.null(seed)) set.seed(seed)
+  cat(paste0("Starting conditional randomization test.\n"))
 
   # compute the test statistic on the real data
   fit_star <- vglm(formula = expressions[gRNA_indicators == 1] ~ 1, family = negbinomial.size(gene_precomp_dispersion), offset = gene_precomp_offsets[gRNA_indicators == 1])
@@ -22,7 +23,7 @@ run_sceptre_using_precomp <- function(expressions, gRNA_indicators, gRNA_precomp
 
   # resample B times
   t_nulls <- sapply(1:B, function(i) {
-    if (i %% 100 == 0) cat(paste0("Running resample ", i ,"/", B, "\n"))
+    if (i %% 100 == 0) cat(paste0("Running resample ", i ,"/", B, ".\n"))
     gRNA_indicators_null <- rbinom(n = length(gRNA_precomp), size = 1, prob = gRNA_precomp)
     fit_null <- vglm(formula = expressions[gRNA_indicators_null == 1] ~ 1, family = negbinomial.size(gene_precomp_dispersion), offset = gene_precomp_offsets[gRNA_indicators_null == 1])
     summaryvglm(fit_null)@coef3["(Intercept)", "z value"]
@@ -89,8 +90,14 @@ run_sceptre_using_precomp <- function(expressions, gRNA_indicators, gRNA_precomp
 #' covariate_matrix <-sim_dat$covariate_df
 #' run_sceptre_gRNA_gene_pair(expressions = expressions, gRNA_indicators = gRNA_indicators, covariate_matrix = covariate_matrix)
 run_sceptre_gRNA_gene_pair <- function(expressions, gRNA_indicators, covariate_matrix, gRNA_precomp = NULL, gene_precomp_dispersion = NULL, gene_precomp_offsets = NULL, B = 500, seed = NULL) {
-  if (is.null(gRNA_precomp)) gRNA_precomp <- run_gRNA_precomputation(gRNA_indicators, covariate_matrix)
-  if (is.null(gene_precomp_dispersion) || is.null(gene_precomp_offsets)) gene_precomp <- run_gene_precomputation(expressions, covariate_matrix, gene_precomp_dispersion, gene_precomp_offsets)
+  if (is.null(gRNA_precomp)) {
+    cat(paste0("Running gRNA precomputation.\n"))
+    gRNA_precomp <- run_gRNA_precomputation(gRNA_indicators, covariate_matrix)
+  }
+  if (is.null(gene_precomp_dispersion) || is.null(gene_precomp_offsets)) {
+    cat(paste0("Running gene precomputation.\n"))
+    gene_precomp <- run_gene_precomputation(expressions, covariate_matrix, gene_precomp_dispersion, gene_precomp_offsets)
+  }
   out <- run_sceptre_using_precomp(expressions = expressions, gRNA_indicators = gRNA_indicators, gRNA_precomp = gRNA_precomp, gene_precomp_dispersion = gene_precomp$gene_precomp_dispersion, gene_precomp_offsets = gene_precomp$gene_precomp_offsets, B = B, seed = seed)
   return(out)
 }
