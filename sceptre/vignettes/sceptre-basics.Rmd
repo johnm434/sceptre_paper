@@ -1,9 +1,9 @@
 ---
 title: "Getting up-and-running with sceptre"
 authors: Tim Barry, Gene Katsevich, Kathryn Roeder
-output: rmarkdown::html_vignette
+output: html_vignette
 vignette: >
-  %\VignetteIndexEntry{sceptre-basics}
+  %\VignetteIndexEntry{Getting up-and-running with sceptre}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -15,44 +15,47 @@ knitr::opts_chunk$set(
 )
 ```
 
-This vignette helps users get up-and-running with the **sceptre** R package. We explain how to use **sceptre** to analyze single-cell pooled CRISPR screen data. We use simulated and real datasets as examples. To download **sceptre**, follow the instructions in the **sceptre** [Github repository](https://github.com/Timothy-Barry/sceptre_paper).
+This vignette helps users get up-and-running with the **sceptre** R package. We show how to use **sceptre** to analyze a small subset of a real single-cell pooled CRISPR screen dataset. To download **sceptre**, follow the instructions in the **sceptre** [Github repository](https://github.com/Timothy-Barry/sceptre_paper).
 
-Load the package.
+We consider data from the paper [A Genome-wide Framework for Mapping Gene Regulation via Cellular Genetic Screens](https://www.cell.com/cell/fulltext/S0092-8674(18)31554-X?_returnURL=https%3A%2F%2Flinkinghub.elsevier.com%2Fretrieve%2Fpii%2FS009286741831554X%3Fshowall%3Dtrue) published by Gasperini et al. in Cell in 2019. The authors perturbed candidate enhancers using CRISPRi and assessed the impact of these perturbations on gene expression through sc-RNAseq. Our goal in this section is to determine the impact of a single perturbation on a single gene, accounting for appropriate technical variables. The perturbation and gene that we investigate were randomly selected from the set of all perturbations and genes in the Gasperini et al. dataset. We begin by loading the data.
 
-```{r setup}
+```{r}
 library(sceptre)
+data("example_data")
+head(example_data)
 ```
-
-## Simulate data
-
-We can simulate data using the **simulate_crispr_screen_data** function. Here, we simulate a dataset with the following parameters:
-
-* *Number of cells*: 1000
-* *Probability of gRNA perturbation (absent covariates)*: 0.2
-* *Covariates*: cell size (distributed as N(0,1)) and cell cycle (distributed as U(0,1)).
-* *mRNA mean expression (absent covariates)*: 40
-* *gRNA effect on expression*: -4
-* *covariate effects*: 0.5 (for cell size) and 1 (for cell cycle)
-* *zero inflation rate*: 0
-* *negative binomial size parameter*: 2
-
-The covariates and the gRNA presence indicator are dependent; in particular, the gRNA presence indicator is modeled as a logistic GLM of the covariates. For simplicity we do not include total cell UMI count (i.e., library size) in this simulation. In practice we would use cell UMI count as a covariate.
+The *example_data* data frame contains 205,797 rows and 7 columns. Rows correspond to cells, and columns correspond to cell-specific features. The first column records gene expression (in UMIs), the second records gRNA presence or absence, and the final five record additional cell-specific covariates (fraction of UMIs that map to mitochondrial genes, batch effect, total UMI count across all genes, total gRNA count across all guides, and total genes expressed). We define the vectors *expressions* and *gRNA_indicators* and data frame *covariate_matrix* that we will pass as arguments to the **sceptre** algorithm.
 
 ```{r}
-simulated_data <- simulate_crispr_screen_data(num_cells = 1000, 
-grna_mean_prob = 0.2, 
-covariate_sampler = list(cell_size = rnorm, cell_cycle = runif),
-mRNA_mean_expression = 40, 
-gRNA_effect = -4, 
-covariate_effects = c(0.5, 1), 
-zero_inflation = 0, 
-neg_binom_size = 2)
+expressions <- example_data$gene_exp
+expressions[1:5]
+
+gRNA_indicators <- example_data$gRNA_indic
+gRNA_indicators[1:5]
+
+covariate_matrix <- summarize(example_data, 
+                              p_mito = p_mito, 
+                              prep_batch = factor(prep_batch), 
+                              lg_total_umis = log(total_umis), 
+                              lg_guide_count = log(guide_count), 
+                              lg_gene_count = log(gene_count))
+head(covariate_matrix)
 ```
 
-The output of this function is a list of three elements: the expression vector *Y*, the covariate data frame, and the gRNA presence indicator *X*. Let's peek at these elements.
+The covariate matrix consists of all technical variables that will be accounted for using **sceptre**. Users of **sceptre** need to decide which variables to include in the covariate matrix given their analysis objective and data; reasonable choices include the fraction of UMIs that map to mitochondrial genes, batch effect, and log-transformed total UMI count (across all genes). The *expressions* vector is untransformed and unscaled; **sceptre** expects gene expressions to be provided as raw UMI counts.
+
+Next, we run the sceptre algorithm by calling the core function *run_sceptre_gRNA_gene_pair*.
 
 ```{r}
-map(simulated_data, head)
+p_value <- run_sceptre_gRNA_gene_pair(expressions = expressions, 
+                                      gRNA_indicators = gRNA_indicators, 
+                                      covariate_matrix = covariate_matrix, 
+                                      seed = 1234)
+p_value
 ```
 
-We can run the sceptre algorithm on these data to test 
+The output, *p_value*, is a numeric scalar containing the p-value of a test of the null hypothesis that the perturbation has no effect on gene expression. In our example the p-value is fairly large (p = 0.261), indicating that there is no evidence that the perturbation affects gene expression.
+
+The *run_sceptre_gRNA_gene_pair* function has several optional parameters, including *gRNA_precomp*, *gene_precomp_dispersion*, and *gene_precomp_offsets* (see function documentation and **sceptre** [manuscript](https://www.biorxiv.org/content/10.1101/2020.08.13.250092v2) for details). The user can pass values to these parameters to accelerate the execution of the function, a good idea when analyzing a large number of gRNA-gene pairs. If the user chooses not to pass values to these optional parameters, *run_sceptre_gRNA_gene_pair* calculates these quantities in a subroutine. The other optional parameters of *run_sceptre_gRNA_gene_pair* are *B* and *seed*. *B* is the number of resamples to draw in the conditional randomization test subroutine (default 500), and *seed* is the seed passed to the random number generator (default none).
+
+Currently, **sceptre** can be used to test for genomic elements that up-regulate gene expression (e.g., enhancers, promoters). **sceptre** does not support testing for genomic elements that down-regulate gene expression (e.g., silencers); this functionality likely will be added to a future iteration of the package.

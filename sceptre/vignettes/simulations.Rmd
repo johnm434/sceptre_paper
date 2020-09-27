@@ -1,0 +1,52 @@
+---
+title: "simulations"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{simulations}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+## Simulated data
+
+We can simulate data using the **simulate_crispr_screen_data** function. Here, we simulate a dataset with the following parameters:
+
+* *Number of cells*: 1000
+* *Probability of gRNA perturbation (absent covariates)*: 0.2
+* *Covariates*: log total UMI count (across genes), and percent mitochondrial UMIs. The former covariate is distributed negative-binomially with mean 5,000 and dispersion parameter 2, and the latter is distributed uniformly on [0,2].
+* *mRNA mean expression (absent covariates)*: 40
+* *gRNA effect on expression*: -4
+* *covariate effects*: 1 (for log total UMI count) and 0.5 (for percent mitochondrial UMIs)
+* *zero inflation rate*: 0.0
+* *negative binomial size parameter*: 2
+
+The covariates and the gRNA presence indicator are dependent; in particular, the gRNA presence indicator is modeled as a logistic GLM of the covariates. The effect of the perturbation on expression is non-zero, meaning that the null hypothesis is false in this example.
+
+```{r, eval=FALSE}
+simulated_data <- simulate_crispr_screen_data(num_cells = 1000, 
+grna_mean_prob = 0.2, 
+covariate_sampler = list(total_umis = function(x) log(rnegbin(x, 1000, 2.5)), 
+                         p_mito = function(x) runif(x, 0, 1)),
+mRNA_mean_expression = 40, 
+gRNA_effect = -4, 
+covariate_effects = c(-1, 0.1), 
+zero_inflation = 0.0, 
+neg_binom_size = 2,
+seed = 1234)
+```
+
+The output of *simulate_crispr_screen_data* is a list of three elements: the expression vector *Y*, the covariate data frame, and the gRNA presence indicator *X*. Let's peek at these elements.
+
+```{r, eval=FALSE}
+map(simulated_data, head)
+```
+
+We can run the **sceptre** algorithm on these data to test if we correctly reject the null hypothesis.
+
+```{r, eval=FALSE}
+p_value <- run_sceptre_gRNA_gene_pair(expressions = simulated_data$Y, 
+                                      gRNA_indicators = simulated_data$X, 
+                                      covariate_matrix = simulated_data$covariate_df, 
+                                      seed = 1234)
+p_value
+```
+

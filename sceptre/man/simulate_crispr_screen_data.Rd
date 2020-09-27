@@ -12,7 +12,8 @@ simulate_crispr_screen_data(
   gRNA_effect,
   covariate_effects,
   zero_inflation,
-  neg_binom_size
+  neg_binom_size,
+  seed = NULL
 )
 }
 \arguments{
@@ -31,6 +32,8 @@ simulate_crispr_screen_data(
 \item{zero_inflation}{a numeric scalar between 0 and 1 (inclusive) giving the mean fraction of cell expressions set to zero}
 
 \item{neg_binom_size}{size parameter for the negative binomial model}
+
+\item{seed}{a seed to the random number generator}
 }
 \value{
 a list containing (i) the expression vector Y, (ii) the data frame of covariates, and (iii) the gRNA presence indicator vector.

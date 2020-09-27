@@ -10,6 +10,7 @@
 #' @param covariate_effects a numeric vector indicating the covariate effects on mRNA expression
 #' @param zero_inflation a numeric scalar between 0 and 1 (inclusive) giving the mean fraction of cell expressions set to zero
 #' @param neg_binom_size size parameter for the negative binomial model
+#' @param seed a seed to the random number generator
 #'
 #' @return
 #' a list containing (i) the expression vector Y, (ii) the data frame of covariates, and (iii) the gRNA presence indicator vector.
@@ -29,7 +30,8 @@
 #' neg_binom_size <- 2
 #' simulated_data <- simulate_crispr_screen_data(num_cells, grna_mean_prob, covariate_sampler, mRNA_mean_expression, gRNA_effect, covariate_effects, zero_inflation, neg_binom_size)
 
-simulate_crispr_screen_data <- function(num_cells, grna_mean_prob, covariate_sampler, mRNA_mean_expression, gRNA_effect, covariate_effects, zero_inflation, neg_binom_size) {
+simulate_crispr_screen_data <- function(num_cells, grna_mean_prob, covariate_sampler, mRNA_mean_expression, gRNA_effect, covariate_effects, zero_inflation, neg_binom_size, seed = NULL) {
+  if (!is.null(seed)) set.seed(seed)
   dat <- map_dfr(.x = covariate_sampler, function(f) f(num_cells))
   formula <- paste0("~", paste0(colnames(dat), collapse = " + ")) %>% as.formula
   cov_model <- model.matrix(formula, data = dat)

@@ -319,51 +319,61 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 
 
 
-<p>This vignette helps users get up-and-running with the <strong>sceptre</strong> R package. We explain how to use <strong>sceptre</strong> to analyze single-cell pooled CRISPR screen data. We use simulated and real datasets as examples. To download <strong>sceptre</strong>, follow the instructions in the <strong>sceptre</strong> <a href="https://github.com/Timothy-Barry/sceptre_paper">Github repository</a>.</p>
-<p>Load the package.</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1"></a><span class="kw">library</span>(sceptre)</span></code></pre></div>
-<div id="simulate-data" class="section level2">
-<h2>Simulate data</h2>
-<p>We can simulate data using the <strong>simulate_crispr_screen_data</strong> function. Here, we simulate a dataset with the following parameters:</p>
-<ul>
-<li><em>Number of cells</em>: 1000</li>
-<li><em>Probability of gRNA perturbation (absent covariates)</em>: 0.2</li>
-<li><em>Covariates</em>: cell size (distributed as N(0,1)) and cell cycle (distributed as U(0,1)).</li>
-<li><em>mRNA mean expression (absent covariates)</em>: 40</li>
-<li><em>gRNA effect on expression</em>: -4</li>
-<li><em>covariate effects</em>: 0.5 (for cell size) and 1 (for cell cycle)</li>
-<li><em>zero inflation rate</em>: 0</li>
-<li><em>negative binomial size parameter</em>: 2</li>
-</ul>
-<p>The covariates and the gRNA presence indicator are dependent; in particular, the gRNA presence indicator is modeled as a logistic GLM of the covariates. For simplicity we do not include total cell UMI count (i.e., library size) in this simulation. In practice we would use cell UMI count as a covariate.</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1"></a>simulated_data &lt;-<span class="st"> </span><span class="kw">simulate_crispr_screen_data</span>(<span class="dt">num_cells =</span> <span class="dv">1000</span>, </span>
-<span id="cb2-2"><a href="#cb2-2"></a><span class="dt">grna_mean_prob =</span> <span class="fl">0.2</span>, </span>
-<span id="cb2-3"><a href="#cb2-3"></a><span class="dt">covariate_sampler =</span> <span class="kw">list</span>(<span class="dt">cell_size =</span> rnorm, <span class="dt">cell_cycle =</span> runif),</span>
-<span id="cb2-4"><a href="#cb2-4"></a><span class="dt">mRNA_mean_expression =</span> <span class="dv">40</span>, </span>
-<span id="cb2-5"><a href="#cb2-5"></a><span class="dt">gRNA_effect =</span> <span class="dv">-4</span>, </span>
-<span id="cb2-6"><a href="#cb2-6"></a><span class="dt">covariate_effects =</span> <span class="kw">c</span>(<span class="fl">0.5</span>, <span class="dv">1</span>), </span>
-<span id="cb2-7"><a href="#cb2-7"></a><span class="dt">zero_inflation =</span> <span class="dv">0</span>, </span>
-<span id="cb2-8"><a href="#cb2-8"></a><span class="dt">neg_binom_size =</span> <span class="dv">2</span>)</span></code></pre></div>
-<p>The output of this function is a list of three elements: the expression vector <em>Y</em>, the covariate data frame, and the gRNA presence indicator <em>X</em>. Let’s peek at these elements.</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1"></a><span class="kw">map</span>(simulated_data, head)</span>
-<span id="cb3-2"><a href="#cb3-2"></a><span class="co">#&gt; $Y</span></span>
-<span id="cb3-3"><a href="#cb3-3"></a><span class="co">#&gt; [1] 149   7 106   2   3   2</span></span>
-<span id="cb3-4"><a href="#cb3-4"></a><span class="co">#&gt; </span></span>
-<span id="cb3-5"><a href="#cb3-5"></a><span class="co">#&gt; $covariate_df</span></span>
-<span id="cb3-6"><a href="#cb3-6"></a><span class="co">#&gt; # A tibble: 6 x 2</span></span>
-<span id="cb3-7"><a href="#cb3-7"></a><span class="co">#&gt;   cell_size cell_cycle</span></span>
-<span id="cb3-8"><a href="#cb3-8"></a><span class="co">#&gt;       &lt;dbl&gt;      &lt;dbl&gt;</span></span>
-<span id="cb3-9"><a href="#cb3-9"></a><span class="co">#&gt; 1   -0.0987      0.901</span></span>
-<span id="cb3-10"><a href="#cb3-10"></a><span class="co">#&gt; 2    1.51        0.461</span></span>
-<span id="cb3-11"><a href="#cb3-11"></a><span class="co">#&gt; 3    1.15        0.542</span></span>
-<span id="cb3-12"><a href="#cb3-12"></a><span class="co">#&gt; 4    2.11        0.575</span></span>
-<span id="cb3-13"><a href="#cb3-13"></a><span class="co">#&gt; 5    1.89        0.910</span></span>
-<span id="cb3-14"><a href="#cb3-14"></a><span class="co">#&gt; 6   -0.530       0.534</span></span>
-<span id="cb3-15"><a href="#cb3-15"></a><span class="co">#&gt; </span></span>
-<span id="cb3-16"><a href="#cb3-16"></a><span class="co">#&gt; $X</span></span>
-<span id="cb3-17"><a href="#cb3-17"></a><span class="co">#&gt; [1] 0 1 0 1 1 1</span></span></code></pre></div>
-<p>We can run the sceptre algorithm on these data to test</p>
-</div>
+<p>This vignette helps users get up-and-running with the <strong>sceptre</strong> R package. We show how to use <strong>sceptre</strong> to analyze a small subset of a real single-cell pooled CRISPR screen dataset. To download <strong>sceptre</strong>, follow the instructions in the <strong>sceptre</strong> <a href="https://github.com/Timothy-Barry/sceptre_paper">Github repository</a>.</p>
+<p>We consider data from the paper <a href="https://www.cell.com/cell/fulltext/S0092-8674(18)31554-X?_returnURL=https%3A%2F%2Flinkinghub.elsevier.com%2Fretrieve%2Fpii%2FS009286741831554X%3Fshowall%3Dtrue">A Genome-wide Framework for Mapping Gene Regulation via Cellular Genetic Screens</a> published by Gasperini et al. in Cell in 2019. The authors perturbed candidate enhancers using CRISPRi and assessed the impact of these perturbations on gene expression through sc-RNAseq. Our goal in this section is to determine the impact of a single perturbation on a single gene, accounting for appropriate technical variables. The perturbation and gene that we investigate were randomly selected from the set of all perturbations and genes in the Gasperini et al. dataset. We begin by loading the data.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1"></a><span class="kw">library</span>(sceptre)</span>
+<span id="cb1-2"><a href="#cb1-2"></a><span class="kw">data</span>(<span class="st">&quot;example_data&quot;</span>)</span>
+<span id="cb1-3"><a href="#cb1-3"></a><span class="kw">head</span>(example_data)</span>
+<span id="cb1-4"><a href="#cb1-4"></a><span class="co">#&gt; # A tibble: 6 x 7</span></span>
+<span id="cb1-5"><a href="#cb1-5"></a><span class="co">#&gt;   gene_exp gRNA_indic  p_mito prep_batch total_umis guide_count gene_count</span></span>
+<span id="cb1-6"><a href="#cb1-6"></a><span class="co">#&gt;      &lt;int&gt;      &lt;dbl&gt;   &lt;dbl&gt;      &lt;dbl&gt;      &lt;dbl&gt;       &lt;dbl&gt;      &lt;int&gt;</span></span>
+<span id="cb1-7"><a href="#cb1-7"></a><span class="co">#&gt; 1        2          0 0.0588           1      17572          67       3549</span></span>
+<span id="cb1-8"><a href="#cb1-8"></a><span class="co">#&gt; 2        1          0 0.0361           1       8923          26       2543</span></span>
+<span id="cb1-9"><a href="#cb1-9"></a><span class="co">#&gt; 3        0          0 0.0698           1      14637          61       3191</span></span>
+<span id="cb1-10"><a href="#cb1-10"></a><span class="co">#&gt; 4        1          0 0.0262           1      22798          39       4539</span></span>
+<span id="cb1-11"><a href="#cb1-11"></a><span class="co">#&gt; 5        0          0 0.00799          1      10136          37       2605</span></span>
+<span id="cb1-12"><a href="#cb1-12"></a><span class="co">#&gt; 6        1          0 0.0224           1       9751          57       2187</span></span></code></pre></div>
+<p>The <em>example_data</em> data frame contains 205,797 rows and 7 columns. Rows correspond to cells, and columns correspond to cell-specific features. The first column records gene expression (in UMIs), the second records gRNA presence or absence, and the final five record additional cell-specific covariates (fraction of UMIs that map to mitochondrial genes, batch effect, total UMI count across all genes, total gRNA count across all guides, and total genes expressed). We define the vectors <em>expressions</em> and <em>gRNA_indicators</em> and data frame <em>covariate_matrix</em> that we will pass as arguments to the <strong>sceptre</strong> algorithm.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1"></a>expressions &lt;-<span class="st"> </span>example_data<span class="op">$</span>gene_exp</span>
+<span id="cb2-2"><a href="#cb2-2"></a>expressions[<span class="dv">1</span><span class="op">:</span><span class="dv">5</span>]</span>
+<span id="cb2-3"><a href="#cb2-3"></a><span class="co">#&gt; [1] 2 1 0 1 0</span></span>
+<span id="cb2-4"><a href="#cb2-4"></a></span>
+<span id="cb2-5"><a href="#cb2-5"></a>gRNA_indicators &lt;-<span class="st"> </span>example_data<span class="op">$</span>gRNA_indic</span>
+<span id="cb2-6"><a href="#cb2-6"></a>gRNA_indicators[<span class="dv">1</span><span class="op">:</span><span class="dv">5</span>]</span>
+<span id="cb2-7"><a href="#cb2-7"></a><span class="co">#&gt; [1] 0 0 0 0 0</span></span>
+<span id="cb2-8"><a href="#cb2-8"></a></span>
+<span id="cb2-9"><a href="#cb2-9"></a>covariate_matrix &lt;-<span class="st"> </span><span class="kw">summarize</span>(example_data, </span>
+<span id="cb2-10"><a href="#cb2-10"></a>                              <span class="dt">p_mito =</span> p_mito, </span>
+<span id="cb2-11"><a href="#cb2-11"></a>                              <span class="dt">prep_batch =</span> <span class="kw">factor</span>(prep_batch), </span>
+<span id="cb2-12"><a href="#cb2-12"></a>                              <span class="dt">lg_total_umis =</span> <span class="kw">log</span>(total_umis), </span>
+<span id="cb2-13"><a href="#cb2-13"></a>                              <span class="dt">lg_guide_count =</span> <span class="kw">log</span>(guide_count), </span>
+<span id="cb2-14"><a href="#cb2-14"></a>                              <span class="dt">lg_gene_count =</span> <span class="kw">log</span>(gene_count))</span>
+<span id="cb2-15"><a href="#cb2-15"></a><span class="kw">head</span>(covariate_matrix)</span>
+<span id="cb2-16"><a href="#cb2-16"></a><span class="co">#&gt; # A tibble: 6 x 5</span></span>
+<span id="cb2-17"><a href="#cb2-17"></a><span class="co">#&gt;    p_mito prep_batch lg_total_umis lg_guide_count lg_gene_count</span></span>
+<span id="cb2-18"><a href="#cb2-18"></a><span class="co">#&gt;     &lt;dbl&gt; &lt;fct&gt;              &lt;dbl&gt;          &lt;dbl&gt;         &lt;dbl&gt;</span></span>
+<span id="cb2-19"><a href="#cb2-19"></a><span class="co">#&gt; 1 0.0588  1                   9.77           4.20          8.17</span></span>
+<span id="cb2-20"><a href="#cb2-20"></a><span class="co">#&gt; 2 0.0361  1                   9.10           3.26          7.84</span></span>
+<span id="cb2-21"><a href="#cb2-21"></a><span class="co">#&gt; 3 0.0698  1                   9.59           4.11          8.07</span></span>
+<span id="cb2-22"><a href="#cb2-22"></a><span class="co">#&gt; 4 0.0262  1                  10.0            3.66          8.42</span></span>
+<span id="cb2-23"><a href="#cb2-23"></a><span class="co">#&gt; 5 0.00799 1                   9.22           3.61          7.87</span></span>
+<span id="cb2-24"><a href="#cb2-24"></a><span class="co">#&gt; 6 0.0224  1                   9.19           4.04          7.69</span></span></code></pre></div>
+<p>The covariate matrix consists of all technical variables that will be accounted for using <strong>sceptre</strong>. Users of <strong>sceptre</strong> need to decide which variables to include in the covariate matrix given their analysis objective and data; reasonable choices include the fraction of UMIs that map to mitochondrial genes, batch effect, and log-transformed total UMI count (across all genes). The <em>expressions</em> vector is untransformed and unscaled; <strong>sceptre</strong> expects gene expressions to be provided as raw UMI counts.</p>
+<p>Next, we run the sceptre algorithm by calling the core function <em>run_sceptre_gRNA_gene_pair</em>.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1"></a>p_value &lt;-<span class="st"> </span><span class="kw">run_sceptre_gRNA_gene_pair</span>(<span class="dt">expressions =</span> expressions, </span>
+<span id="cb3-2"><a href="#cb3-2"></a>                                      <span class="dt">gRNA_indicators =</span> gRNA_indicators, </span>
+<span id="cb3-3"><a href="#cb3-3"></a>                                      <span class="dt">covariate_matrix =</span> covariate_matrix, </span>
+<span id="cb3-4"><a href="#cb3-4"></a>                                      <span class="dt">seed =</span> <span class="dv">1234</span>)</span>
+<span id="cb3-5"><a href="#cb3-5"></a><span class="co">#&gt; Running resample 100/500</span></span>
+<span id="cb3-6"><a href="#cb3-6"></a><span class="co">#&gt; Running resample 200/500</span></span>
+<span id="cb3-7"><a href="#cb3-7"></a><span class="co">#&gt; Running resample 300/500</span></span>
+<span id="cb3-8"><a href="#cb3-8"></a><span class="co">#&gt; Running resample 400/500</span></span>
+<span id="cb3-9"><a href="#cb3-9"></a><span class="co">#&gt; Running resample 500/500</span></span>
+<span id="cb3-10"><a href="#cb3-10"></a>p_value</span>
+<span id="cb3-11"><a href="#cb3-11"></a><span class="co">#&gt; [1] 0.2610861</span></span></code></pre></div>
+<p>The output, <em>p_value</em>, is a numeric scalar containing the p-value of a test of the null hypothesis that the perturbation has no effect on gene expression. In our example the p-value is fairly large (p = 0.261), indicating that there is no evidence that the perturbation affects gene expression.</p>
+<p>The <em>run_sceptre_gRNA_gene_pair</em> function has several optional parameters, including <em>gRNA_precomp</em>, <em>gene_precomp_dispersion</em>, and <em>gene_precomp_offsets</em> (see function documentation and <strong>sceptre</strong> <a href="https://www.biorxiv.org/content/10.1101/2020.08.13.250092v2">manuscript</a> for details). The user can pass values to these parameters to accelerate the execution of the function, a good idea when analyzing a large number of gRNA-gene pairs. If the user chooses not to pass values to these optional parameters, <em>run_sceptre_gRNA_gene_pair</em> calculates these quantities in a subroutine. The other optional parameters of <em>run_sceptre_gRNA_gene_pair</em> are <em>B</em> and <em>seed</em>. <em>B</em> is the number of resamples to draw in the conditional randomization test subroutine (default 500), and <em>seed</em> is the seed passed to the random number generator (default none).</p>
+<p>Currently, <strong>sceptre</strong> can be used to test for genomic elements that up-regulate gene expression (e.g., enhancers, promoters). <strong>sceptre</strong> does not support testing for genomic elements that down-regulate gene expression (e.g., silencers); this functionality likely will be added to a future iteration of the package.</p>
 
 
 

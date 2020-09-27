@@ -38,7 +38,8 @@ run_sceptre_using_precomp <- function(expressions, gRNA_indicators, gRNA_precomp
     }
   }
   p_value_raw <- mean(c(-Inf, t_nulls) <= t_star)
-  return(list(p_value_raw = p_value_raw, p_value_skew_t = p_value_skew_t, z_value_star = t_star))
+  out <- if (is.na(p_value_skew_t)) p_value_raw else p_value_skew_t
+  return(out)
 }
 
 

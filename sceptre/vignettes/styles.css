@@ -1,0 +1,34 @@
+.distill-site-nav {
+  color: #000000;
+  background-color: #EFEFEF;
+  font-weight: 200;
+  font-size: 13pt;
+}
+
+.distill-site-nav a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.distill-site-nav a:hover {
+  color: black;
+}
+
+.distill-site-header {
+}
+
+.distill-site-footer {
+}
+
+@media print {
+  .distill-site-nav {
+    display: none;
+  }
+}
+
+body {
+  max-width: 1100px;
+  margin: auto;
+ padding: 1em;
+ line-height: 20px ; 
+}
