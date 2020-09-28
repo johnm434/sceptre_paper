@@ -28,8 +28,14 @@
 #' covariate_effects <- c(2, 1)
 #' zero_inflation <- 0
 #' neg_binom_size <- 2
-#' simulated_data <- simulate_crispr_screen_data(num_cells, grna_mean_prob, covariate_sampler, mRNA_mean_expression, gRNA_effect, covariate_effects, zero_inflation, neg_binom_size)
-
+#' simulated_data <- simulate_crispr_screen_data(num_cells,
+#'  grna_mean_prob,
+#'  covariate_sampler,
+#'  mRNA_mean_expression,
+#'  gRNA_effect,
+#'  covariate_effects,
+#'  zero_inflation,
+#'  neg_binom_size)
 simulate_crispr_screen_data <- function(num_cells, grna_mean_prob, covariate_sampler, mRNA_mean_expression, gRNA_effect, covariate_effects, zero_inflation, neg_binom_size, seed = NULL) {
   if (!is.null(seed)) set.seed(seed)
   dat <- map_dfr(.x = covariate_sampler, function(f) f(num_cells))

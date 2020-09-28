@@ -2,7 +2,8 @@
 #'
 #' This function is the workhorse function of the sceptre package. It runs a distilled CRT using a negative binomial test statistic based on an expression vector, a gRNA indicator vector, an offset vector (from the distillation step), gRNA conditional probabilities, an estimate of the negative binomial dispersion parameter, and the number of resampling replicates.
 #'
-#' This is a one-tailed, left-sided test. Activators.
+#' This currently is a one-tailed, left-sided test. Thus, it is suitable for up-regulatory elements like enhancers and promoters but not down-regulatory elements like silencers.
+#'
 #' @param expressions a vector of gene expressions (in UMI counts)
 #' @param gRNA_indicators a vector of gRNA indicators
 #' @param gRNA_precomp a vector of conditional probabilities for gRNA assignments
@@ -46,9 +47,7 @@ run_sceptre_using_precomp <- function(expressions, gRNA_indicators, gRNA_precomp
 
 #' Run sceptre on a gRNA-gene pair
 #'
-#' This function runs the sceptre algorithm on a gRNA-gene pair. It requires as arguments the gene expression vector, the gRNA indicator vector, and the covariate matrix. Users optionally can pass the gRNA precomputation or gene precomputation as arguments.
-#'
-#' If the user wants to pass both the gRNA precomputation and gene precomputation, the user should use instead the function run_sceptre_using_precomp. Most users of this pacakge will NOT pass either gRNA_precomp or gene_precomp as arguements to this function.
+#' This function runs the sceptre algorithm on a single gRNA-gene pair. It requires as arguments the gene expression vector, the gRNA indicator vector, and the covariate matrix. Users optionally can pass the gRNA precomputation or gene precomputation as arguments.
 #'
 #' @param expressions a vector a gene expressions
 #' @param gRNA_indicators a vector of gRNA inicators
@@ -56,7 +55,8 @@ run_sceptre_using_precomp <- function(expressions, gRNA_indicators, gRNA_precomp
 #' @param gRNA_precomp (optional) the gRNA precomputation (a vector of gRNA presence conditional probabilities)
 #' @param gene_precomp_dispersion (optional) the pre-computed gene dispersion
 #' @param gene_precomp_offsets (optional) the pre-computed gene offsets
-#' @param B  number of resamples (default 500)
+#' @param B number of resamples (default 500)
+#' @param seed (optional) seed to the random number generator
 #'
 #' @return a p-value of the null hypothesis of no gRNA effect on gene expression
 #' @export
@@ -74,7 +74,9 @@ run_sceptre_using_precomp <- function(expressions, gRNA_indicators, gRNA_precomp
 #' expressions <- sim_dat$Y
 #' gRNA_indicators <- sim_dat$X
 #' covariate_matrix <-sim_dat$covariate_df
-#' run_sceptre_gRNA_gene_pair(expressions = expressions, gRNA_indicators = gRNA_indicators, covariate_matrix = covariate_matrix)
+#' run_sceptre_gRNA_gene_pair(expressions = expressions,
+#' gRNA_indicators = gRNA_indicators,
+#' covariate_matrix = covariate_matrix)
 #'
 #' # An example in which the null is true.
 #' sim_dat <- simulate_crispr_screen_data(num_cells = 1000,
@@ -88,7 +90,9 @@ run_sceptre_using_precomp <- function(expressions, gRNA_indicators, gRNA_precomp
 #' expressions <- sim_dat$Y
 #' gRNA_indicators <- sim_dat$X
 #' covariate_matrix <-sim_dat$covariate_df
-#' run_sceptre_gRNA_gene_pair(expressions = expressions, gRNA_indicators = gRNA_indicators, covariate_matrix = covariate_matrix)
+#' run_sceptre_gRNA_gene_pair(expressions = expressions,
+#' gRNA_indicators = gRNA_indicators,
+#' covariate_matrix = covariate_matrix)
 run_sceptre_gRNA_gene_pair <- function(expressions, gRNA_indicators, covariate_matrix, gRNA_precomp = NULL, gene_precomp_dispersion = NULL, gene_precomp_offsets = NULL, B = 500, seed = NULL) {
   if (is.null(gRNA_precomp)) {
     cat(paste0("Running gRNA precomputation.\n"))
@@ -137,6 +141,8 @@ run_gRNA_precomputation <- function(gRNA_indicators, covariate_matrix) {
 #'
 #' @param expressions the vector of gene expressions
 #' @param covariate_matrix the cell-specific covariate matrix
+#' @param gene_precomp_dispersion the pre-computed dispersion parameter (NULL if none)
+#' @param gene_precomp_offsets the pre-computed gene offsets (NULL of none)
 #'
 #' @return a named list containing two items: offsets and dispersion.
 #' @export

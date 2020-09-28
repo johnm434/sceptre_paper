@@ -36,5 +36,5 @@ a p-value of the null hypothesis of no gRNA effect on gene expression
 This function is the workhorse function of the sceptre package. It runs a distilled CRT using a negative binomial test statistic based on an expression vector, a gRNA indicator vector, an offset vector (from the distillation step), gRNA conditional probabilities, an estimate of the negative binomial dispersion parameter, and the number of resampling replicates.
 }
 \details{
-This is a one-tailed, left-sided test. Activators.
+This currently is a one-tailed, left-sided test. Thus, it is suitable for up-regulatory elements like enhancers and promoters but not down-regulatory elements like silencers.
 }

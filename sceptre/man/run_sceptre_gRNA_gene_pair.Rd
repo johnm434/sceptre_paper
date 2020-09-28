@@ -29,15 +29,14 @@ run_sceptre_gRNA_gene_pair(
 \item{gene_precomp_offsets}{(optional) the pre-computed gene offsets}
 
 \item{B}{number of resamples (default 500)}
+
+\item{seed}{(optional) seed to the random number generator}
 }
 \value{
 a p-value of the null hypothesis of no gRNA effect on gene expression
 }
 \description{
-This function runs the sceptre algorithm on a gRNA-gene pair. It requires as arguments the gene expression vector, the gRNA indicator vector, and the covariate matrix. Users optionally can pass the gRNA precomputation or gene precomputation as arguments.
-}
-\details{
-If the user wants to pass both the gRNA precomputation and gene precomputation, the user should use instead the function run_sceptre_using_precomp. Most users of this pacakge will NOT pass either gRNA_precomp or gene_precomp as arguements to this function.
+This function runs the sceptre algorithm on a single gRNA-gene pair. It requires as arguments the gene expression vector, the gRNA indicator vector, and the covariate matrix. Users optionally can pass the gRNA precomputation or gene precomputation as arguments.
 }
 \examples{
 # An example in which the alternative is true.
@@ -52,7 +51,9 @@ neg_binom_size = 2)
 expressions <- sim_dat$Y
 gRNA_indicators <- sim_dat$X
 covariate_matrix <-sim_dat$covariate_df
-run_sceptre_gRNA_gene_pair(expressions = expressions, gRNA_indicators = gRNA_indicators, covariate_matrix = covariate_matrix)
+run_sceptre_gRNA_gene_pair(expressions = expressions,
+gRNA_indicators = gRNA_indicators,
+covariate_matrix = covariate_matrix)
 
 # An example in which the null is true.
 sim_dat <- simulate_crispr_screen_data(num_cells = 1000,
@@ -66,5 +67,7 @@ neg_binom_size = 2)
 expressions <- sim_dat$Y
 gRNA_indicators <- sim_dat$X
 covariate_matrix <-sim_dat$covariate_df
-run_sceptre_gRNA_gene_pair(expressions = expressions, gRNA_indicators = gRNA_indicators, covariate_matrix = covariate_matrix)
+run_sceptre_gRNA_gene_pair(expressions = expressions,
+gRNA_indicators = gRNA_indicators,
+covariate_matrix = covariate_matrix)
 }

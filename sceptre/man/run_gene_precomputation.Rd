@@ -15,6 +15,10 @@ run_gene_precomputation(
 \item{expressions}{the vector of gene expressions}
 
 \item{covariate_matrix}{the cell-specific covariate matrix}
+
+\item{gene_precomp_dispersion}{the pre-computed dispersion parameter (NULL if none)}
+
+\item{gene_precomp_offsets}{the pre-computed gene offsets (NULL of none)}
 }
 \value{
 a named list containing two items: offsets and dispersion.
