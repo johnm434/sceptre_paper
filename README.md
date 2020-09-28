@@ -13,6 +13,8 @@ install_github(repo="Timothy-Barry/sceptre_paper", subdir="sceptre")
 
 ### Learning to use **sceptre**
 
-Several vignettes are available to help users get started with **sceptre**.
+A vignette and a package manual are available to help users get started with **sceptre**.
 
-* [Getting up-and-running with sceptre](https://htmlpreview.github.io/?https://github.com/Timothy-Barry/sceptre_paper/blob/master/sceptre/vignettes/sceptre-basics.html)
+* [Getting up-and-running with sceptre (vignette)](https://htmlpreview.github.io/?https://github.com/Timothy-Barry/sceptre_paper/blob/master/sceptre/vignettes/sceptre-basics.html)
+
+* [Package manual](https://github.com/Timothy-Barry/sceptre_paper/blob/master/sceptre_0.1.0.pdf)
