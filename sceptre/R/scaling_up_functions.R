@@ -1,13 +1,12 @@
 # scaling up package
 # This script provides functions to scale up sceptre to large datasets.
 
-
-#' Create fbm from mtx
+#' Create FBM from .mtx file
 #'
-#' @param path_to_mtx
-#' @param dest_folder
+#' @param path_to_mtx a file path to the .mtx file
+#' @param dest_folder the folder in which to store the FBMs (default -- directory of .mtx file).
 #'
-#' @return
+#' @return the full file paths to the backing file (cell-gene matrix) and transposed backing file (gene-cell matrix).
 #' @export
 #'
 #' @examples
@@ -29,9 +28,10 @@ create_fbm_from_mtx <- function(path_to_mtx, dest_folder = NULL) {
   n_cells <- header[[2]]
 
   cat("Creating a file-backed matrix on disk. \n")
-  expression_FBM_t <- FBM(n_genes, n_cells, type = "unsigned short",
+  expression_FBM_t <- FBM(nrow = n_genes, ncol = n_cells, type = "unsigned short",
                                  backingfile = backingfile_t,
                                  create_bk = TRUE, is_read_only = FALSE, init = 0)
+  expression_FBM_t_metadata <- list(nrow = n_genes, ncol = n_cells, type = "unsigned short", backingfile = backingfile_t)
   # Define the call-back function and run the read-and-write.
   write_to_FBM <- function(chunk, pos) {
     cells_in_chunk <- chunk %>% pull(cell) %>% unique() %>% sort()
@@ -49,7 +49,24 @@ create_fbm_from_mtx <- function(path_to_mtx, dest_folder = NULL) {
                      col_names = c("gene", "cell", "expression"),
                      col_types = "iii",
                      progress = FALSE)
-
   # Finally, save the transpose of the created matrix
+  cat("Calculating and saving the transpose of the gene-cell expression matrix. \n")
   big_transpose(expression_FBM_t, backingfile = backingfile)
+  expression_FBM_metadata <- list(nrow = n_cells, ncol = n_genes, type = "unsigned short", backingfile = backingfile)
+  return(list(expression_FBM_metadata = expression_FBM_metadata, expression_FBM_t_metadata = expression_FBM_t_metadata))
+}
+
+#' Load FBM
+#'
+#' @param fbm_metadata a "metadata" list returned by the create_fbm_from_mtx function.
+#'
+#' @return an FBM
+#' @export
+#'
+#' @examples
+#' fbm_metadata <- readRDS("/Volumes/tims_new_drive/research/sceptre_files/data/gasperini/processed/expression_FBM_metadata.rds")
+#' load_fbm(fbm_metadata)
+load_fbm <- function(fbm_metadata) {
+  out <- FBM(nrow = fbm_metadata$nrow, ncol = fbm_metadata$ncol, type = fbm_metadata$type, backingfile = fbm_metadata$backingfile, is_read_only = TRUE, create_bk = FALSE)
+  return(out)
 }
