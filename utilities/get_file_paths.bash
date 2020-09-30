@@ -5,7 +5,7 @@
 # Define machine_name, code_dir, and data_results_dir arrays.
 machine_name=(local hydra ubergenno uberduo bridges)
 code_dir=(/Users/timbarry/Box/SCEPTRE/sceptre_paper hydra_code_dir ubergenno_code_dir uberduo_code_dir bridges_code_dir)
-data_results_dir=(local_data_dir hydra_data_dir ubergenno_data_dir uberduo_data_dir bridges_data_dir)
+data_results_dir=(/Volumes/tims_new_drive/research/sceptre_files hydra_data_dir ubergenno_data_dir uberduo_data_dir bridges_data_dir)
 
 # find the index of the selected machine
 for ((index=0; index<${#machine_name[@]}; index++))

@@ -17,4 +17,4 @@ A vignette and a package manual are available to help users get started with **s
 
 * [Getting up-and-running with sceptre (vignette)](https://htmlpreview.github.io/?https://github.com/Timothy-Barry/sceptre_paper/blob/master/sceptre/vignettes/sceptre-basics.html)
 
-* [Package manual](https://github.com/Timothy-Barry/sceptre_paper/blob/master/sceptre_0.1.0.pdf) (scroll down if blank screen)
+* [Package manual](https://github.com/Timothy-Barry/sceptre_paper/blob/master/sceptre_0.1.0.pdf) (scroll down if screen blank)
