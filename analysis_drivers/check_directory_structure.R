@@ -2,18 +2,18 @@ library(stringr, quietly = TRUE)
 library(purrr, quietly = TRUE)
 # take as an argument a file path to the "offsite" (data, results, logs, figures) directory.
 args <- commandArgs(trailingOnly = TRUE)
-offsite_directory <- args[1]
+offsite_directory <- args[1] # offsite_directory <- "/Volumes/tims_new_drive/research/sceptre_files"
 
-# This function takes as an argument an inner directory, and returns all 
+# This function takes as an argument an inner directory, and returns all
 create_parent_directories <- function(s) {
   s_split <- str_split(string = s, pattern = "/")[[1]]
   unlist(map(1:length(s_split), function(i) paste0(s_split[1:i], collapse = "/")))
 }
 
 # Hardcode the directories to create.
-sub_dirs <- c(create_parent_directories("data/gasperini/raw"), "data/gasperini/precomp", "data/gasperini/processed",
-  create_parent_directories("data/Xie/raw"), "data/Xie/processed", "data/Xie/precomp",
-  create_parent_directories("data/functional"), "data/functional/HIC", "data/functional/ChIP-seq", "data/functional/GeneHancer", 
+sub_dirs <- c(create_parent_directories("data/gasperini/raw"), create_parent_directories("data/gasperini/precomp/gRNA"), "data/gasperini/precomp/gene", "data/gasperini/processed",
+  create_parent_directories("data/Xie/raw"), "data/Xie/processed", create_parent_directories("data/Xie/precomp/gRNA"), "data/Xie/precomp/gene",
+  create_parent_directories("data/functional"), "data/functional/HIC", "data/functional/ChIP-seq", "data/functional/GeneHancer",
   create_parent_directories("results/gasperini"), "results/Xie", "results/simulations",
   "figures", "logs") %>% unique()
 

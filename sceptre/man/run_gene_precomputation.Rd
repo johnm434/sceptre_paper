@@ -4,12 +4,7 @@
 \alias{run_gene_precomputation}
 \title{Run gene precomputation}
 \usage{
-run_gene_precomputation(
-  expressions,
-  covariate_matrix,
-  gene_precomp_dispersion,
-  gene_precomp_offsets
-)
+run_gene_precomputation(expressions, covariate_matrix, gene_precomp_dispersion)
 }
 \arguments{
 \item{expressions}{the vector of gene expressions}
@@ -17,8 +12,6 @@ run_gene_precomputation(
 \item{covariate_matrix}{the cell-specific covariate matrix}
 
 \item{gene_precomp_dispersion}{the pre-computed dispersion parameter (NULL if none)}
-
-\item{gene_precomp_offsets}{the pre-computed gene offsets (NULL of none)}
 }
 \value{
 a named list containing two items: offsets and dispersion.

@@ -56,6 +56,7 @@ create_fbm_from_mtx <- function(path_to_mtx, dest_folder = NULL) {
   return(list(expression_FBM_metadata = expression_FBM_metadata, expression_FBM_t_metadata = expression_FBM_t_metadata))
 }
 
+
 #' Load FBM
 #'
 #' @param fbm_metadata a "metadata" list returned by the create_fbm_from_mtx function.
@@ -69,4 +70,118 @@ create_fbm_from_mtx <- function(path_to_mtx, dest_folder = NULL) {
 load_fbm <- function(fbm_metadata) {
   out <- FBM(nrow = fbm_metadata$nrow, ncol = fbm_metadata$ncol, type = fbm_metadata$type, backingfile = fbm_metadata$backingfile, is_read_only = TRUE, create_bk = FALSE)
   return(out)
+}
+
+
+#' Create dictionary
+#'
+#' Create a dictionary that maps named elements (gRNAs, genes, or gRNA pairs) to files for a given "pod" size.
+#'
+#' @param ids the names of elements (gRNAs or genes)
+#' @param pod_size size of the pods
+#' @param precomp_base_filename base name of the file (specified with full file path) in which to store the precomputation.
+#'
+#' @return
+#' @export
+create_dictionary <- function(ids, pod_size) {
+  n_pods_minus_1 <- floor(length(ids)/pod_size)
+  pod_id <- rep(1:n_pods_minus_1, each = pod_size)
+  pod_id_append <- rep(n_pods_minus_1 + 1, times = length(ids) - length(pod_id))
+  pod_id <- c(pod_id, pod_id_append)
+  out <- tibble(id = ids, pod_id = pod_id)
+}
+
+
+#' Create and store dictionaries
+#'
+#' We require a few bookkeeping files (that we call "dictionaries") for the gRNA and gene precomputation steps. This file creates those dictionaries and stores them in the appropriate locations on disk.
+#'
+#' @param gRNA_gene_pairs a tible containing a the gene-gRNA pairs to analyze using sceptre. The column names should be "gene_id" and "gRNA_id."
+#' @param gene_precomp_dir the directory in which to store the gene precomputations
+#' @param gRNA_precomp_dir the directory in which to store the gRNA precomputations
+#' @param results_dir the directory in which to store the results
+#' @param pod_sizes an integer vector with three named elements: gRNA, gene, and pairs. These elements give the sizes of the respective "pods."
+#'
+#' @return a character vector containing the file paths to the gene, gRNA, and results dictionaries.
+#' @export
+#'
+#' @examples
+create_and_store_dictionaries <- function(gRNA_gene_pairs, gene_precomp_dir, gRNA_precomp_dir, results_dir, pod_sizes) {
+  # 1. genes
+  genes <- unique(gRNA_gene_pairs$gene_id)
+  gene_dictionary <- create_dictionary(ids = genes, pod_size = pod_sizes[["gene"]]) %>% mutate(offset_file = paste0(gene_precomp_dir, "/gene_offsets_", pod_id, ".fst") %>% factor(), dispersion_file = paste0(gene_precomp_dir, "/gene_dispersion_", pod_id, ".fst") %>% factor())
+  gene_dictionary_fp <- paste0(gene_precomp_dir, "/gene_dictionary.fst")
+  write.fst(gene_dictionary, gene_dictionary_fp)
+
+  # 2. gRNA
+  gRNAs <- unique(gRNA_gene_pairs$gRNA_id)
+  gRNA_dictionary <- create_dictionary(ids = gRNAs, pod_size = pod_sizes[["gRNA"]]) %>% mutate(precomp_file = factor(paste0(gRNA_precomp_dir, "/gRNA_precomp_", pod_id, ".fst")))
+  gRNA_dictionary_fp <- paste0(gRNA_precomp_dir, "/gRNA_dictionary.fst")
+  write.fst(gRNA_dictionary, gRNA_dictionary_fp)
+
+  # 3. gRNA-gene pairs
+  pairs <- create_dictionary(ids = gRNA_gene_pairs$gRNA_id, pod_size = pod_sizes[["pairs"]]) %>% rename(gRNA_id = id) %>% mutate(gene_id = gRNA_gene_pairs$gene_id) %>% select(gRNA_id, gene_id, pod_id) %>% mutate(result_file = paste0(results_dir, "/result_", pod_id, ".fst"))
+  pairs_dictionary_fp <- paste0(results_dir, "/results_dictionary.fst")
+  write.fst(pairs, pairs_dictionary_fp)
+
+  return(c(gene_dictionary_fp = gene_dictionary_fp, gRNA_dictionary_fp = gRNA_dictionary_fp, pairs_dictionary_fp = pairs_dictionary_fp))
+}
+
+#' Run gRNA precomputation at scale
+#'
+#' @param gRNA_ids the ids of gRNAs on which to compute the precomputation
+#' @param gRNA_indicator_matrix_fp file path the the gRNA indicator matrix (assumed to be stored in .fst format)
+#' @param covariate_matrix the covariate matrix
+#' @param precomp_matrix_fp the name of the file (including the file path) in which to save the precomputation result
+#' @param cell_subset (optional) an integer vector containing the cells to use in the precomputation
+#'
+#' @return NULL
+#' @export
+#'
+#' @examples
+#' gRNA_dict <- read.fst("/Volumes/tims_new_drive/research/sceptre_files/data/gasperini/precomp/gRNA/gRNA_dictionary.fst")
+#' gRNA_ids <- filter(gRNA_dict, pod_id == 1) %>% pull(id) %>% head(20)
+#' precomp_matrix_fp <- as.character((filter(gRNA_dict, pod_id == 1) %>% pull(file_name))[1])
+#' gRNA_indicator_matrix_fp <- "/Volumes/tims_new_drive/research/sceptre_files/data/gasperini/processed/gRNA_indicators.fst"
+#' covariate_matrix <- read.fst("/Volumes/tims_new_drive/research/sceptre_files/data/gasperini/processed/cell_covariate_model_matrix.fst")
+#' run_gRNA_precomputation_at_scale(gRNA_ids[1:20], gRNA_indicator_matrix_fp, covariate_matrix, precomp_matrix_fp)
+
+run_gRNA_precomputation_at_scale <- function(gRNA_ids, gRNA_indicator_matrix_fp, covariate_matrix, precomp_matrix_fp, cell_subset = NULL) {
+  if (!is.null(cell_subset)) covariate_matrix <- covariate_matrix[cell_subset,]
+  # run the precomputation on the gRNAs
+  out <- sapply(gRNA_ids, function(gRNA_id) {
+    cat(paste0("Running precomputation for gRNA " ,gRNA_id, ".\n"))
+    gRNA_indicators <- read.fst(path = gRNA_indicator_matrix_fp, columns = gRNA_id) %>% pull() %>% as.integer()
+    if (!is.null(cell_subset)) gRNA_indicators <- gRNA_indicators[cell_subset]
+    run_gRNA_precomputation(gRNA_indicators, covariate_matrix)
+  }) %>% as_tibble()
+  # save the result
+  write.fst(out, precomp_matrix_fp)
+  return(NULL)
+}
+
+# gene_dict <- read.fst("/Volumes/tims_new_drive/research/sceptre_files/data/gasperini/precomp/gene/gene_dictionary.fst")
+# genes_to_precompute <- filter(gene_dict, pod_id == 1) %>% pull(id) %>% head(5)
+# offset_save_fp <- "/Volumes/tims_new_drive/research/sceptre_files/data/gasperini/precomp/gene/offset_precomp_1.fst"
+# dispersion_save_fp <- "/Volumes/tims_new_drive/research/sceptre_files/data/gasperini/precomp/gene/dispersion_precomp_1.rds"
+# covariate_matrix <- read.fst("/Volumes/tims_new_drive/research/sceptre_files/data/gasperini/processed/cell_covariate_model_matrix.fst")
+# exp_matrix_info <- readRDS("/Volumes/tims_new_drive/research/sceptre_files/data/gasperini/processed/expression_FBM_metadata.rds")
+# exp_matrix <- FBM(nrow = exp_matrix_info$nrow, ncol = exp_matrix_info$ncol, type = exp_matrix_info$type, create_bk = FALSE, is_read_only = TRUE, backingfile = exp_matrix_info$backingfile)
+# all_ordered_gene_ids <- readRDS("/Volumes/tims_new_drive/research/sceptre_files/data/gasperini/processed/ordered_gene_ids.RDS")
+
+run_gene_precomputation_at_scale <- function(genes_to_precompute, exp_matrix, all_ordered_gene_ids, covariate_matrix, offset_save_fp, dispersion_save_fp, gene_dispersions = NULL, cell_subset = NULL) {
+  if (!is.null(cell_subset)) covariate_matrix <- covariate_matrix[cell_subset,]
+  integer_ids <- sapply(genes_to_precompute, function(i) which(i == all_ordered_gene_ids)) %>% as.integer()
+  precomps <- map(1:length(genes_to_precompute), function(i) {
+    cat(paste0("Running precomputation for gene ", genes_to_precompute[i] ,".\n"))
+    integer_id <- integer_ids[i]
+    expressions <- exp_matrix[,integer_id]
+    if (!is.null(cell_subset)) expressions <- expressions[cell_subset]
+    run_gene_precomputation(expressions = expressions, covariate_matrix = covariate_matrix, gene_precomp_dispersion = gene_dispersions[i], NULL)
+  })
+  names(precomps) <- genes_to_precompute
+  out_offsets <- map_dfc(precomps, function(l) l$gene_precomp_offsets)
+  out_dispersions <- map_dbl(precomps, function(l) l$gene_precomp_dispersion)
+  write.fst(out_offsets, offset_save_fp)
+  saveRDS(out_dispersions, dispersion_save_fp)
 }

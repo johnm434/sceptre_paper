@@ -54,7 +54,6 @@ run_sceptre_using_precomp <- function(expressions, gRNA_indicators, gRNA_precomp
 #' @param covariate_matrix the matrix of cell-specific covariates (e.g., library size, batch effect, cell cycle, etc.)
 #' @param gRNA_precomp (optional) the gRNA precomputation (a vector of gRNA presence conditional probabilities)
 #' @param gene_precomp_dispersion (optional) the pre-computed gene dispersion
-#' @param gene_precomp_offsets (optional) the pre-computed gene offsets
 #' @param B number of resamples (default 500)
 #' @param seed (optional) seed to the random number generator
 #'
@@ -93,14 +92,14 @@ run_sceptre_using_precomp <- function(expressions, gRNA_indicators, gRNA_precomp
 #' run_sceptre_gRNA_gene_pair(expressions = expressions,
 #' gRNA_indicators = gRNA_indicators,
 #' covariate_matrix = covariate_matrix)
-run_sceptre_gRNA_gene_pair <- function(expressions, gRNA_indicators, covariate_matrix, gRNA_precomp = NULL, gene_precomp_dispersion = NULL, gene_precomp_offsets = NULL, B = 500, seed = NULL) {
+run_sceptre_gRNA_gene_pair <- function(expressions, gRNA_indicators, covariate_matrix, gRNA_precomp = NULL, gene_precomp_dispersion = NULL, B = 500, seed = NULL) {
   if (is.null(gRNA_precomp)) {
     cat(paste0("Running gRNA precomputation.\n"))
     gRNA_precomp <- run_gRNA_precomputation(gRNA_indicators, covariate_matrix)
   }
-  if (is.null(gene_precomp_dispersion) || is.null(gene_precomp_offsets)) {
+  if (is.null(gene_precomp_dispersion)) {
     cat(paste0("Running gene precomputation.\n"))
-    gene_precomp <- run_gene_precomputation(expressions, covariate_matrix, gene_precomp_dispersion, gene_precomp_offsets)
+    gene_precomp <- run_gene_precomputation(expressions, covariate_matrix, gene_precomp_dispersion)
   }
   out <- run_sceptre_using_precomp(expressions = expressions, gRNA_indicators = gRNA_indicators, gRNA_precomp = gRNA_precomp, gene_precomp_dispersion = gene_precomp$gene_precomp_dispersion, gene_precomp_offsets = gene_precomp$gene_precomp_offsets, B = B, seed = seed)
   return(out)
@@ -142,7 +141,6 @@ run_gRNA_precomputation <- function(gRNA_indicators, covariate_matrix) {
 #' @param expressions the vector of gene expressions
 #' @param covariate_matrix the cell-specific covariate matrix
 #' @param gene_precomp_dispersion the pre-computed dispersion parameter (NULL if none)
-#' @param gene_precomp_offsets the pre-computed gene offsets (NULL of none)
 #'
 #' @return a named list containing two items: offsets and dispersion.
 #' @export
@@ -159,7 +157,7 @@ run_gRNA_precomputation <- function(gRNA_indicators, covariate_matrix) {
 #' expressions <- sim_dat$Y
 #' covariate_matrix <- sim_dat$covariate_df
 #' gene_precomp <- run_gene_precomputation(expressions, covariate_matrix, NULL, NULL)
-run_gene_precomputation <- function(expressions, covariate_matrix, gene_precomp_dispersion, gene_precomp_offsets) {
+run_gene_precomputation <- function(expressions, covariate_matrix, gene_precomp_dispersion) {
   # cases on gene_precomp_dispersion
   if (is.null(gene_precomp_dispersion)) { # no dispersion supplied; use glm.nb to estimate dispersion and fit model
     tryCatch({
@@ -177,11 +175,7 @@ run_gene_precomputation <- function(expressions, covariate_matrix, gene_precomp_
     fit_nb <- vglm(formula = expressions ~ ., family = negbinomial.size(gene_precomp_dispersion_out), data = covariate_matrix)
     fitted_vals <- as.numeric(fittedvlm(fit_nb))
   }
-  if (is.null(gene_precomp_offsets)) {
-    gene_precomp_offsets_out <- log(fitted_vals)
-  } else {
-    gene_precomp_offsets_out <- gene_precomp_offsets
-  }
+  gene_precomp_offsets_out <- log(fitted_vals)
   out <- list(gene_precomp_offsets = gene_precomp_offsets_out, gene_precomp_dispersion = gene_precomp_dispersion_out)
   return(out)
 }

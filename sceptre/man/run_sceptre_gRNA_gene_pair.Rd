@@ -10,7 +10,6 @@ run_sceptre_gRNA_gene_pair(
   covariate_matrix,
   gRNA_precomp = NULL,
   gene_precomp_dispersion = NULL,
-  gene_precomp_offsets = NULL,
   B = 500,
   seed = NULL
 )
@@ -25,8 +24,6 @@ run_sceptre_gRNA_gene_pair(
 \item{gRNA_precomp}{(optional) the gRNA precomputation (a vector of gRNA presence conditional probabilities)}
 
 \item{gene_precomp_dispersion}{(optional) the pre-computed gene dispersion}
-
-\item{gene_precomp_offsets}{(optional) the pre-computed gene offsets}
 
 \item{B}{number of resamples (default 500)}
 
