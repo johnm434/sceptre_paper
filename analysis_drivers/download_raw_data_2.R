@@ -5,15 +5,17 @@
 ####################################################################
 
 library(R.utils, quietly = TRUE)
+
 args <- commandArgs(trailingOnly = TRUE)
-offsite_dir <- args[1]
+code_dir <- if (is.na(args[1])) "/Users/timbarry/Box/SCEPTRE/sceptre_paper/" else args[1]
+source(paste0(code_dir, "/analysis_drivers/file_paths_to_dirs.R"))
 
 ################################
 # Download Gasperini et al. data
 ################################
 
 # path to store the raw Gasperini data
-raw_data_dir_gasp <- paste0(offsite_dir, "/data/gasperini/raw")
+raw_data_dir_gasp <- raw_data_dir
 
 # URL of data
 remote <- "https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE120861&format=file&file="

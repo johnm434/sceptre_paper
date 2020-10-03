@@ -1,9 +1,6 @@
-# Pre-process the data
-
 args <- commandArgs(trailingOnly = TRUE)
-offsite_dir <- args[1] # offsite_dir <- "/Volumes/tims_new_drive/research/sceptre_files"
-processed_dir <- paste0(offsite_dir, "/data/gasperini/processed")
-raw_data_dir <-  paste0(offsite_dir, "/data/gasperini/raw")
+code_dir <- if (is.na(args[1])) "/Users/timbarry/Box/SCEPTRE/sceptre_paper/" else args[1]
+source(paste0(code_dir, "/analysis_drivers/file_paths_to_dirs.R"))
 
 #######################
 # Gasperini CRISPR data
@@ -22,7 +19,7 @@ for (i in 1:length(fbms)) {
 # 2. Read monocole object
 gc()
 library(monocle, quietly = TRUE) # monocole required to load monocole CellDataSet object; we will extract only the cell-specific metadata
-m_object <- readRDS("/Volumes/tims_new_drive/research/sceptre_files/data/gasperini/raw/GSE120861_at_scale_screen.cds.rds")
+m_object <- readRDS(paste0(raw_data_dir, "/GSE120861_at_scale_screen.cds.rds"))
 
 # 2a. save the coefficients of the mean-dispersion relationship
 saveRDS(attr(m_object@dispFitInfo$blind$disp_func, "coefficients"), paste0(processed_dir, "/disp_coefficients.rds"))
@@ -60,7 +57,7 @@ write.fst(cell_covariates_model, paste0(processed_dir, "/cell_covariate_model_ma
 
 # 4. Extract the target_site-gRNA pairs to analyze.
 all_deg_results <- suppressWarnings(read_tsv(paste0(raw_data_dir, "/GSE120861_all_deg_results.at_scale.txt"), col_types = "cddddddccccciiciiccl"))
-pairs_to_analyze <- all_deg_results %>% rename(gene_id = ENSG) %>% select(gene_id, gRNA_group) %>% arrange()
+pairs_to_analyze <- all_deg_results %>% rename(gene_id = ENSG, gRNA_id = gRNA_group) %>% select(gene_id, gRNA_id) %>% arrange()
 write.fst(pairs_to_analyze, paste0(processed_dir, "/gene_gRNA_pairs_to_study.fst"))
 
 # 5. Finally, save the (ordered) gene names

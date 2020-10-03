@@ -100,12 +100,10 @@ create_dictionary <- function(ids, pod_size) {
 #' @param gene_precomp_dir the directory in which to store the gene precomputations
 #' @param gRNA_precomp_dir the directory in which to store the gRNA precomputations
 #' @param results_dir the directory in which to store the results
-#' @param pod_sizes an integer vector with three named elements: gRNA, gene, and pairs. These elements give the sizes of the respective "pods."
+#' @param pod_sizes an integer vector with three named elements: gRNA, gene, and pair. These elements give the sizes of the respective "pods."
 #'
 #' @return a character vector containing the file paths to the gene, gRNA, and results dictionaries.
 #' @export
-#'
-#' @examples
 create_and_store_dictionaries <- function(gRNA_gene_pairs, gene_precomp_dir, gRNA_precomp_dir, results_dir, pod_sizes) {
   # 1. genes
   genes <- unique(gRNA_gene_pairs$gene_id)
@@ -120,12 +118,15 @@ create_and_store_dictionaries <- function(gRNA_gene_pairs, gene_precomp_dir, gRN
   write.fst(gRNA_dictionary, gRNA_dictionary_fp)
 
   # 3. gRNA-gene pairs
-  pairs <- create_dictionary(ids = gRNA_gene_pairs$gRNA_id, pod_size = pod_sizes[["pairs"]]) %>% rename(gRNA_id = id) %>% mutate(gene_id = gRNA_gene_pairs$gene_id) %>% select(gRNA_id, gene_id, pod_id) %>% mutate(result_file = paste0(results_dir, "/result_", pod_id, ".fst"))
+  pairs_dictionary <- create_dictionary(ids = gRNA_gene_pairs$gRNA_id, pod_size = pod_sizes[["pair"]]) %>% rename(gRNA_id = id) %>% mutate(gene_id = gRNA_gene_pairs$gene_id) %>% select(gRNA_id, gene_id, pod_id) %>% mutate(result_file = paste0(results_dir, "/result_", pod_id, ".fst"))
   pairs_dictionary_fp <- paste0(results_dir, "/results_dictionary.fst")
-  write.fst(pairs, pairs_dictionary_fp)
+  write.fst(pairs_dictionary, pairs_dictionary_fp)
 
-  return(c(gene_dictionary_fp = gene_dictionary_fp, gRNA_dictionary_fp = gRNA_dictionary_fp, pairs_dictionary_fp = pairs_dictionary_fp))
+  out <- list(fps = c(gene = gene_dictionary_fp, gRNA = gRNA_dictionary_fp, pairs = pairs_dictionary_fp),
+              n_pods = c(gene = gene_dictionary$pod_id[nrow(gene_dictionary)], gRNA = gRNA_dictionary$pod_id[nrow(gRNA_dictionary)], pairs = pairs_dictionary$pod_id[nrow(pairs_dictionary)]))
+  return(out)
 }
+
 
 #' Run gRNA precomputation at scale
 #'
@@ -150,7 +151,7 @@ run_gRNA_precomputation_at_scale <- function(gRNA_ids, gRNA_indicator_matrix_fp,
   if (!is.null(cell_subset)) covariate_matrix <- covariate_matrix[cell_subset,]
   # run the precomputation on the gRNAs
   out <- sapply(gRNA_ids, function(gRNA_id) {
-    cat(paste0("Running precomputation for gRNA " ,gRNA_id, ".\n"))
+    cat(paste0("Running precomputation for gRNA ", gRNA_id, ".\n"))
     gRNA_indicators <- read.fst(path = gRNA_indicator_matrix_fp, columns = gRNA_id) %>% pull() %>% as.integer()
     if (!is.null(cell_subset)) gRNA_indicators <- gRNA_indicators[cell_subset]
     run_gRNA_precomputation(gRNA_indicators, covariate_matrix)
