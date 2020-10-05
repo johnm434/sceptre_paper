@@ -26,9 +26,14 @@ run_sceptre_using_precomp <- function(expressions, gRNA_indicators, gRNA_precomp
   t_nulls <- sapply(1:B, function(i) {
     if (i %% 100 == 0) cat(paste0("Running resample ", i ,"/", B, ".\n"))
     gRNA_indicators_null <- rbinom(n = length(gRNA_precomp), size = 1, prob = gRNA_precomp)
-    fit_null <- vglm(formula = expressions[gRNA_indicators_null == 1] ~ 1, family = negbinomial.size(gene_precomp_dispersion), offset = gene_precomp_offsets[gRNA_indicators_null == 1])
-    summaryvglm(fit_null)@coef3["(Intercept)", "z value"]
+    tryCatch({
+      fit_null <- vglm(formula = expressions[gRNA_indicators_null == 1] ~ 1, family = negbinomial.size(gene_precomp_dispersion), offset = gene_precomp_offsets[gRNA_indicators_null == 1])
+      summaryvglm(fit_null)@coef3["(Intercept)", "z value"]},
+      error = function(e) return(NA),
+      warning = function(w) return(NA)
+      )
   })
+  t_nulls <- t_nulls[!is.na(t_nulls)]
 
   # Fit a skew-t distribution and obtain a p-value
   p_value_skew_t <- NA
@@ -133,6 +138,7 @@ run_gRNA_precomputation <- function(gRNA_indicators, covariate_matrix) {
   out <- as.numeric(fitted(fit_model_grna))
   return(out)
 }
+
 
 #' Run gene precomputation
 #'

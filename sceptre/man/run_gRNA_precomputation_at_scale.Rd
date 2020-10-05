@@ -5,32 +5,32 @@
 \title{Run gRNA precomputation at scale}
 \usage{
 run_gRNA_precomputation_at_scale(
-  gRNA_ids,
+  pod_id,
+  gRNA_precomp_dir,
   gRNA_indicator_matrix_fp,
   covariate_matrix,
-  precomp_matrix_fp,
-  cell_subset = NULL
+  cell_subset = NULL,
+  log_dir = NULL
 )
 }
 \arguments{
-\item{gRNA_ids}{the ids of gRNAs on which to compute the precomputation}
+\item{pod_id}{ID of the pod for which to do the precomputation}
 
-\item{gRNA_indicator_matrix_fp}{file path the the gRNA indicator matrix (assumed to be stored in .fst format)}
+\item{gRNA_precomp_dir}{file path to the gRNA precomputation directory}
 
-\item{covariate_matrix}{the covariate matrix}
+\item{gRNA_indicator_matrix_fp}{filepath to the gRNA indicator matrix}
 
-\item{precomp_matrix_fp}{the name of the file (including the file path) in which to save the precomputation result}
+\item{covariate_matrix}{the cell-specific covariate matrix}
 
-\item{cell_subset}{(optional) an integer vector containing the cells to use in the precomputation}
+\item{cell_subset}{an integer vector specifying the cells on which to fit the model}
 }
 \description{
-Run gRNA precomputation at scale
+This function runs the gRNA precomputation on a selected "pod" of gRNAs (as identified by the pod_id). It stores the result in the gRNA precomputation directory.
 }
 \examples{
-gRNA_dict <- read.fst("/Volumes/tims_new_drive/research/sceptre_files/data/gasperini/precomp/gRNA/gRNA_dictionary.fst")
-gRNA_ids <- filter(gRNA_dict, pod_id == 1) \%>\% pull(id) \%>\% head(20)
-precomp_matrix_fp <- as.character((filter(gRNA_dict, pod_id == 1) \%>\% pull(file_name))[1])
+pod_id <- 1
+gRNA_precomp_dir <- "/Volumes/tims_new_drive/research/sceptre_files/data/gasperini/precomp/gRNA"
 gRNA_indicator_matrix_fp <- "/Volumes/tims_new_drive/research/sceptre_files/data/gasperini/processed/gRNA_indicators.fst"
 covariate_matrix <- read.fst("/Volumes/tims_new_drive/research/sceptre_files/data/gasperini/processed/cell_covariate_model_matrix.fst")
-run_gRNA_precomputation_at_scale(gRNA_ids[1:20], gRNA_indicator_matrix_fp, covariate_matrix, precomp_matrix_fp)
+cell_subset <- readRDS("/Volumes/tims_new_drive/research/sceptre_files/data/gasperini/processed/cells_to_keep.rds")
 }
