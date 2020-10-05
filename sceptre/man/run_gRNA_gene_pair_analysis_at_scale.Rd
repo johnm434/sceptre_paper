@@ -14,17 +14,36 @@ run_gRNA_gene_pair_analysis_at_scale(
   gRNA_indicator_matrix_fp,
   covariate_matrix,
   cell_subset = NULL,
-  B = 500,
+  seed = NULL,
   log_dir = NULL,
-  seed = NULL
+  B = 500
 )
 }
 \arguments{
-\item{seed}{}
-}
-\value{
+\item{pod_id}{id of the pod to compute}
 
+\item{gene_precomp_dir}{the directory containing the results of the gene precomputation}
+
+\item{gRNA_precomp_dir}{the directory containing the results of the gRNA precomputation}
+
+\item{results_dir}{directory in which to store the results}
+
+\item{cell_gene_expression_matrix}{an FBM containing the cell-by-gene expressions}
+
+\item{ordered_gene_ids}{the gene ids of the cell-gene expression matrix}
+
+\item{gRNA_indicator_matrix_fp}{a file-path to the gRNA indicator matrix (assumed to be stored as a .fst file)}
+
+\item{covariate_matrix}{the cell-covariate matrix}
+
+\item{cell_subset}{(optional) an integer vector containing the cells to subset}
+
+\item{seed}{(optional) seed to pass to the randomization algorithm}
+
+\item{log_dir}{(optional) directory in which to sink the log file}
+
+\item{B}{number of bootstrap resamples (default 500)}
 }
 \description{
-Run gRNA-gene pair analysis at scale
+Runs the gene-gRRNA pair ananysis across an entire pod of gene-gRNA pairs.
 }

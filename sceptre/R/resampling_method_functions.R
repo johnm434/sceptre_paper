@@ -16,7 +16,6 @@
 #' @return a p-value of the null hypothesis of no gRNA effect on gene expression
 run_sceptre_using_precomp <- function(expressions, gRNA_indicators, gRNA_precomp, gene_precomp_dispersion, gene_precomp_offsets, B, seed) {
   if (!is.null(seed)) set.seed(seed)
-  cat(paste0("Starting conditional randomization test.\n"))
 
   # compute the test statistic on the real data
   fit_star <- vglm(formula = expressions[gRNA_indicators == 1] ~ 1, family = negbinomial.size(gene_precomp_dispersion), offset = gene_precomp_offsets[gRNA_indicators == 1])
@@ -166,16 +165,17 @@ run_gRNA_precomputation <- function(gRNA_indicators, covariate_matrix) {
 run_gene_precomputation <- function(expressions, covariate_matrix, gene_precomp_dispersion) {
   # cases on gene_precomp_dispersion
   if (is.null(gene_precomp_dispersion)) { # no dispersion supplied; use glm.nb to estimate dispersion and fit model
-    tryCatch({
-      fit_nb <- glm.nb(formula = expressions ~ ., data = covariate_matrix)
-      fitted_vals <- as.numeric(fit_nb$fitted.values)
-      gene_precomp_dispersion_out <- fit_nb$theta
-    }, error = function(e) {
+    backup <- function() {
       pois_fit <- glm(expressions ~ ., data = covariate_matrix, family = poisson())
       gene_precomp_dispersion_out <- theta.ml(expressions, pois_fit$fitted.values)[1]
       fit_nb <- vglm(formula = expressions ~ ., family = negbinomial.size(gene_precomp_dispersion_out), data = covariate_matrix)
       fitted_vals <- as.numeric(fittedvlm(fit_nb))
-    })
+    }
+    tryCatch({
+      fit_nb <- glm.nb(formula = expressions ~ ., data = covariate_matrix)
+      fitted_vals <- as.numeric(fit_nb$fitted.values)
+      gene_precomp_dispersion_out <- fit_nb$theta
+    }, error = function(e) backup(), warning = function(w) backup())
   } else { # dispersion supplied; use vglm to fit model
     gene_precomp_dispersion_out <- gene_precomp_dispersion
     fit_nb <- vglm(formula = expressions ~ ., family = negbinomial.size(gene_precomp_dispersion_out), data = covariate_matrix)

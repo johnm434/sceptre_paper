@@ -57,7 +57,7 @@ write.fst(cell_covariates_model, paste0(processed_dir, "/cell_covariate_model_ma
 
 # 4. Extract the target_site-gRNA pairs to analyze.
 all_deg_results <- suppressWarnings(read_tsv(paste0(raw_data_dir, "/GSE120861_all_deg_results.at_scale.txt"), col_types = "cddddddccccciiciiccl"))
-pairs_to_analyze <- all_deg_results %>% rename(gene_id = ENSG, gRNA_id = gRNA_group) %>% select(gene_id, gRNA_id) %>% arrange()
+pairs_to_analyze <- all_deg_results %>% rename(gene_id = ENSG, gRNA_id = gRNA_group) %>% select(gene_id, gRNA_id) %>% mutate(gene_id = factor(gene_id), gRNA_id = factor(gRNA_id)) %>% arrange()
 write.fst(pairs_to_analyze, paste0(processed_dir, "/gene_gRNA_pairs_to_study.fst"))
 
 # 5. Finally, save the (ordered) gene names

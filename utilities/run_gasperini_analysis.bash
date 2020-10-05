@@ -39,4 +39,7 @@ seq 1 $n_gene_pods | xargs -I{} -n 1 -P 2 Rscript $code_dir"/analysis_drivers/"r
 
 echo Run gRNA precomputation across all gRNA pods.
 seq 1 $n_gRNA_pods | xargs -I{} -n 1 -P 2 Rscript $code_dir"/analysis_drivers/"run_gRNA_precomputation_7.R $code_dir $offsite_dir {} &
+wait
 
+echo Run gRNA-gene pair analysis across all pair pods.
+seq 1 $n_pair_pods | xargs -I{} -n 1 -P 2 Rscript $code_dir"/analysis_drivers/"run_pair_analysis_at_scale_8.R $code_dir $offsite_dir {} &
