@@ -1,6 +1,6 @@
 args <- commandArgs(trailingOnly = TRUE)
 code_dir <- if (is.na(args[1])) "/Users/timbarry/Box/SCEPTRE/sceptre_paper/" else args[1]
-source(paste0(code_dir, "/analysis_drivers/file_paths_to_dirs.R"))
+source(paste0(code_dir, "/analysis_drivers_gasp/file_paths_to_dirs.R"))
 
 # We perform a basic quality control for the Gasperini data; in particular, we restrict the cells in our analysis to those with at least 1 gRNA.
 gRNA_indicator_matrix <- read.fst(paste0(processed_dir, "/gRNA_indicators.fst"))
