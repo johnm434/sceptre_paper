@@ -12,7 +12,7 @@ run_gene_precomputation_at_scale(
   covariate_matrix,
   cell_subset = NULL,
   log_dir = NULL,
-  gene_dispersions = NULL
+  gene_sizes = NULL
 )
 }
 \arguments{
@@ -30,7 +30,7 @@ run_gene_precomputation_at_scale(
 
 \item{log_dir}{file path to the directory in which to sink the log output}
 
-\item{gene_dispersions}{(optional) a vector of already-estimated (or known) gene dispersions}
+\item{gene_sizes}{(optional) a vector of already-estimated (or known) gene sizes}
 }
 \description{
 Run gene precomputation at scale

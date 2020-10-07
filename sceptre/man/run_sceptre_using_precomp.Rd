@@ -8,7 +8,7 @@ run_sceptre_using_precomp(
   expressions,
   gRNA_indicators,
   gRNA_precomp,
-  gene_precomp_dispersion,
+  gene_precomp_size,
   gene_precomp_offsets,
   B,
   seed
@@ -21,7 +21,7 @@ run_sceptre_using_precomp(
 
 \item{gRNA_precomp}{a vector of conditional probabilities for gRNA assignments}
 
-\item{gene_precomp_dispersion}{the pre-computed dispersion}
+\item{gene_precomp_size}{the pre-computed size}
 
 \item{gene_precomp_offsets}{the pre-computed distillation offsets}
 
@@ -33,7 +33,7 @@ run_sceptre_using_precomp(
 a p-value of the null hypothesis of no gRNA effect on gene expression
 }
 \description{
-This function is the workhorse function of the sceptre package. It runs a distilled CRT using a negative binomial test statistic based on an expression vector, a gRNA indicator vector, an offset vector (from the distillation step), gRNA conditional probabilities, an estimate of the negative binomial dispersion parameter, and the number of resampling replicates.
+This function is the workhorse function of the sceptre package. It runs a distilled CRT using a negative binomial test statistic based on an expression vector, a gRNA indicator vector, an offset vector (from the distillation step), gRNA conditional probabilities, an estimate of the negative binomial size parameter, and the number of resampling replicates.
 }
 \details{
 This currently is a one-tailed, left-sided test. Thus, it is suitable for up-regulatory elements like enhancers and promoters but not down-regulatory elements like silencers.

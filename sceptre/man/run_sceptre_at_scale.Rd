@@ -15,10 +15,10 @@ run_sceptre_at_scale(
   covariate_matrix,
   cell_subset = NULL,
   pod_sizes = c(gene = 100, gRNA = 500, pair = 200),
-  seed = NULL,
+  seed = 1234,
   log_dir = NULL,
   B = 500,
-  gene_dispersions = NULL,
+  gene_sizes = NULL,
   multi_processor = TRUE
 )
 }
@@ -49,7 +49,7 @@ run_sceptre_at_scale(
 
 \item{B}{(optional, default 500) number of resamples to draw in CRT subroutine}
 
-\item{gene_dispersions}{(optional) vector of known gene dispersions}
+\item{gene_sizes}{(optional) vector of known gene sizes}
 
 \item{mutli_processor}{(opitional boolean, default TRUE) should this function use multiple processors?}
 }

@@ -47,8 +47,7 @@ cell_covariates <- read.fst(paste0(processed_dir, "/cell_covariates_all.fst"))
 cell_covariates_model <- summarize(cell_covariates, p_mito = cell_covariates$percent.mito, prep_batch = cell_covariates$prep_batch, lg_total_umis = log(cell_covariates$total_umis), lg_guide_count = log(cell_covariates$guide_count))
 
 # Determine the number of expressed genes in each cell
-fbm_metadata_exp_t <- readRDS(paste0(processed_dir, "/expression_FBM_t_metadata.rds"))
-exp_mat_t <- load_fbm(fbm_metadata_exp_t)
+exp_mat_t <- readRDS(paste0(processed_dir, "/expression_FBM_t_metadata.rds")) %>% load_fbm
 n_genes <- big_apply(exp_mat_t, function(X, ind) {colSums(X[,ind] > 0)}) %>% unlist()
 
 # Add this feature to the cell_covariates_model data frame

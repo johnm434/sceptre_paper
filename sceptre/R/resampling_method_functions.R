@@ -1,24 +1,24 @@
 #' Run sceptre using precomputations for gRNAs and genes.
 #'
-#' This function is the workhorse function of the sceptre package. It runs a distilled CRT using a negative binomial test statistic based on an expression vector, a gRNA indicator vector, an offset vector (from the distillation step), gRNA conditional probabilities, an estimate of the negative binomial dispersion parameter, and the number of resampling replicates.
+#' This function is the workhorse function of the sceptre package. It runs a distilled CRT using a negative binomial test statistic based on an expression vector, a gRNA indicator vector, an offset vector (from the distillation step), gRNA conditional probabilities, an estimate of the negative binomial size parameter, and the number of resampling replicates.
 #'
 #' This currently is a one-tailed, left-sided test. Thus, it is suitable for up-regulatory elements like enhancers and promoters but not down-regulatory elements like silencers.
 #'
 #' @param expressions a vector of gene expressions (in UMI counts)
 #' @param gRNA_indicators a vector of gRNA indicators
 #' @param gRNA_precomp a vector of conditional probabilities for gRNA assignments
-#' @param gene_precomp_dispersion the pre-computed dispersion
+#' @param gene_precomp_size the pre-computed size
 #' @param gene_precomp_offsets the pre-computed distillation offsets
 #' @param B the number of resamples to make (default 500)
 #' @param seed an arguement to set.seed; if null, no seed is set
 #'
 #' @export
 #' @return a p-value of the null hypothesis of no gRNA effect on gene expression
-run_sceptre_using_precomp <- function(expressions, gRNA_indicators, gRNA_precomp, gene_precomp_dispersion, gene_precomp_offsets, B, seed) {
+run_sceptre_using_precomp <- function(expressions, gRNA_indicators, gRNA_precomp, gene_precomp_size, gene_precomp_offsets, B, seed) {
   if (!is.null(seed)) set.seed(seed)
 
   # compute the test statistic on the real data
-  fit_star <- vglm(formula = expressions[gRNA_indicators == 1] ~ 1, family = negbinomial.size(gene_precomp_dispersion), offset = gene_precomp_offsets[gRNA_indicators == 1])
+  fit_star <- vglm(formula = expressions[gRNA_indicators == 1] ~ 1, family = negbinomial.size(gene_precomp_size), offset = gene_precomp_offsets[gRNA_indicators == 1])
   t_star <- summaryvglm(fit_star)@coef3["(Intercept)", "z value"]
 
   # resample B times
@@ -26,7 +26,7 @@ run_sceptre_using_precomp <- function(expressions, gRNA_indicators, gRNA_precomp
     if (i %% 100 == 0) cat(paste0("Running resample ", i ,"/", B, ".\n"))
     gRNA_indicators_null <- rbinom(n = length(gRNA_precomp), size = 1, prob = gRNA_precomp)
     tryCatch({
-      fit_null <- vglm(formula = expressions[gRNA_indicators_null == 1] ~ 1, family = negbinomial.size(gene_precomp_dispersion), offset = gene_precomp_offsets[gRNA_indicators_null == 1])
+      fit_null <- vglm(formula = expressions[gRNA_indicators_null == 1] ~ 1, family = negbinomial.size(gene_precomp_size), offset = gene_precomp_offsets[gRNA_indicators_null == 1])
       summaryvglm(fit_null)@coef3["(Intercept)", "z value"]},
       error = function(e) return(NA),
       warning = function(w) return(NA)
@@ -56,8 +56,7 @@ run_sceptre_using_precomp <- function(expressions, gRNA_indicators, gRNA_precomp
 #' @param expressions a vector a gene expressions
 #' @param gRNA_indicators a vector of gRNA inicators
 #' @param covariate_matrix the matrix of cell-specific covariates (e.g., library size, batch effect, cell cycle, etc.)
-#' @param gRNA_precomp (optional) the gRNA precomputation (a vector of gRNA presence conditional probabilities)
-#' @param gene_precomp_dispersion (optional) the pre-computed gene dispersion
+#' @param gene_precomp_size (optional) the pre-computed size of the gene NB distribution
 #' @param B number of resamples (default 500)
 #' @param seed (optional) seed to the random number generator
 #'
@@ -96,16 +95,14 @@ run_sceptre_using_precomp <- function(expressions, gRNA_indicators, gRNA_precomp
 #' run_sceptre_gRNA_gene_pair(expressions = expressions,
 #' gRNA_indicators = gRNA_indicators,
 #' covariate_matrix = covariate_matrix)
-run_sceptre_gRNA_gene_pair <- function(expressions, gRNA_indicators, covariate_matrix, gRNA_precomp = NULL, gene_precomp_dispersion = NULL, B = 500, seed = NULL) {
-  if (is.null(gRNA_precomp)) {
-    cat(paste0("Running gRNA precomputation.\n"))
-    gRNA_precomp <- run_gRNA_precomputation(gRNA_indicators, covariate_matrix)
-  }
-  if (is.null(gene_precomp_dispersion)) {
-    cat(paste0("Running gene precomputation.\n"))
-    gene_precomp <- run_gene_precomputation(expressions, covariate_matrix, gene_precomp_dispersion)
-  }
-  out <- run_sceptre_using_precomp(expressions = expressions, gRNA_indicators = gRNA_indicators, gRNA_precomp = gRNA_precomp, gene_precomp_dispersion = gene_precomp$gene_precomp_dispersion, gene_precomp_offsets = gene_precomp$gene_precomp_offsets, B = B, seed = seed)
+run_sceptre_gRNA_gene_pair <- function(expressions, gRNA_indicators, covariate_matrix, gene_precomp_size = NULL, B = 500, seed = NULL) {
+  cat(paste0("Running gRNA precomputation.\n"))
+  gRNA_precomp <- run_gRNA_precomputation(gRNA_indicators, covariate_matrix)
+
+  cat(paste0("Running gene precomputation.\n"))
+  gene_precomp <- run_gene_precomputation(expressions, covariate_matrix, gene_precomp_size)
+
+  out <- run_sceptre_using_precomp(expressions = expressions, gRNA_indicators = gRNA_indicators, gRNA_precomp = gRNA_precomp, gene_precomp_size = gene_precomp$gene_precomp_size, gene_precomp_offsets = gene_precomp$gene_precomp_offsets, B = B, seed = seed)
   return(out)
 }
 
@@ -141,13 +138,13 @@ run_gRNA_precomputation <- function(gRNA_indicators, covariate_matrix) {
 
 #' Run gene precomputation
 #'
-#' This function runs the precomputation for a given gene. In particlar, it fits an NB regression of expression against covariates. The estimate of theta (i.e., the NB dispersion parameter) is obtained from glm.nb function. This is sensible as, under the null hypothesis, the NB model without the gRNA indicator is true. Offsets are obtained by log-transforming the fitted values.
+#' This function runs the precomputation for a given gene. In particlar, it fits an NB regression of expression against covariates. The estimate of theta (i.e., the NB size parameter) is obtained from glm.nb function. This is sensible as, under the null hypothesis, the NB model without the gRNA indicator is true. Offsets are obtained by log-transforming the fitted values.
 #'
 #' @param expressions the vector of gene expressions
 #' @param covariate_matrix the cell-specific covariate matrix
-#' @param gene_precomp_dispersion the pre-computed dispersion parameter (NULL if none)
+#' @param gene_precomp_size the pre-computed size parameter (NULL if none)
 #'
-#' @return a named list containing two items: offsets and dispersion.
+#' @return a named list containing two items: offsets and size.
 #' @export
 #'
 #' @examples
@@ -162,26 +159,26 @@ run_gRNA_precomputation <- function(gRNA_indicators, covariate_matrix) {
 #' expressions <- sim_dat$Y
 #' covariate_matrix <- sim_dat$covariate_df
 #' gene_precomp <- run_gene_precomputation(expressions, covariate_matrix, NULL, NULL)
-run_gene_precomputation <- function(expressions, covariate_matrix, gene_precomp_dispersion) {
-  # cases on gene_precomp_dispersion
-  if (is.null(gene_precomp_dispersion)) { # no dispersion supplied; use glm.nb to estimate dispersion and fit model
+run_gene_precomputation <- function(expressions, covariate_matrix, gene_precomp_size) {
+  # cases on gene_precomp_size
+  if (is.null(gene_precomp_size)) { # no size supplied; use glm.nb to estimate size and fit model
     backup <- function() {
       pois_fit <- glm(expressions ~ ., data = covariate_matrix, family = poisson())
-      gene_precomp_dispersion_out <- theta.ml(expressions, pois_fit$fitted.values)[1]
-      fit_nb <- vglm(formula = expressions ~ ., family = negbinomial.size(gene_precomp_dispersion_out), data = covariate_matrix)
+      gene_precomp_size_out <- theta.ml(expressions, pois_fit$fitted.values)[1]
+      fit_nb <- vglm(formula = expressions ~ ., family = negbinomial.size(gene_precomp_size_out), data = covariate_matrix)
       fitted_vals <- as.numeric(fittedvlm(fit_nb))
     }
     tryCatch({
       fit_nb <- glm.nb(formula = expressions ~ ., data = covariate_matrix)
       fitted_vals <- as.numeric(fit_nb$fitted.values)
-      gene_precomp_dispersion_out <- fit_nb$theta
+      gene_precomp_size_out <- fit_nb$theta
     }, error = function(e) backup(), warning = function(w) backup())
-  } else { # dispersion supplied; use vglm to fit model
-    gene_precomp_dispersion_out <- gene_precomp_dispersion
-    fit_nb <- vglm(formula = expressions ~ ., family = negbinomial.size(gene_precomp_dispersion_out), data = covariate_matrix)
+  } else { # size supplied; use vglm to fit model
+    gene_precomp_size_out <- gene_precomp_size
+    fit_nb <- vglm(formula = expressions ~ ., family = negbinomial.size(gene_precomp_size_out), data = covariate_matrix)
     fitted_vals <- as.numeric(fittedvlm(fit_nb))
   }
   gene_precomp_offsets_out <- log(fitted_vals)
-  out <- list(gene_precomp_offsets = gene_precomp_offsets_out, gene_precomp_dispersion = gene_precomp_dispersion_out)
+  out <- list(gene_precomp_offsets = gene_precomp_offsets_out, gene_precomp_size = gene_precomp_size_out)
   return(out)
 }

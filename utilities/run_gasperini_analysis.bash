@@ -42,4 +42,8 @@ seq 1 $n_gRNA_pods | xargs -I{} -n 1 -P 2 Rscript $code_dir"/analysis_drivers/"r
 wait
 
 echo Run gRNA-gene pair analysis across all pair pods.
-seq 1 $n_pair_pods | xargs -I{} -n 1 -P 2 Rscript $code_dir"/analysis_drivers/"run_pair_analysis_at_scale_8.R $code_dir $offsite_dir {} &
+seq 1 $n_pair_pods | xargs -I{} -n 1 -P 3 Rscript $code_dir"/analysis_drivers/"run_pair_analysis_at_scale_8.R $code_dir $offsite_dir {} &
+wait
+
+echo Collect and save results.
+Rscript $code_dir"/analysis_drivers/"aggregate_results_9.R $code_dir $offsite_dir
