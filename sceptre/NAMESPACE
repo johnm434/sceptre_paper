@@ -3,7 +3,7 @@
 export(collect_results)
 export(create_and_store_dictionaries)
 export(create_fbm_from_mtx)
-export(create_parent_directories)
+export(extract_column_from_csc)
 export(load_fbm)
 export(run_gRNA_gene_pair_analysis_at_scale)
 export(run_gRNA_precomputation)
