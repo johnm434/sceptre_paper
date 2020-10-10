@@ -10,7 +10,8 @@ extract_column_from_csc(
   indices,
   ind_ptr,
   n_rows,
-  zero_based_idx = TRUE
+  zero_based_idx = TRUE,
+  row_idxs = NULL
 )
 }
 \arguments{
@@ -24,7 +25,9 @@ extract_column_from_csc(
 
 \item{n_rows}{number of rows of matrix}
 
-\item{zero_based_idx}{(boolean) do the indices and ind_ptr vectors use zero-based indexing?}
+\item{zero_based_idx}{(optional boolean) do the indices and ind_ptr vectors use zero-based indexing?}
+
+\item{row_idxs}{(optional) integer vector specifying the rows to extract}
 }
 \value{
 the (dense) columns of the matrix corresponding to columns column_no
