@@ -68,31 +68,3 @@ load_fbm <- function(fbm_metadata) {
   return(out)
 }
 
-
-#' Extract column from CSC (compreseed sparse column) representation of matrix
-#'
-#' @param column_no integer vector; the columns to extract from the matrix
-#' @param dat the vector of UMI counts
-#' @param indices the "external" indices corresponding to row ids
-#' @param ind_ptr the "internal" indices used to locate the external indices and dat for a given column
-#' @param n_rows number of rows of matrix
-#' @param zero_based_idx (optional boolean) do the indices and ind_ptr vectors use zero-based indexing?
-#' @param row_idxs (optional) integer vector specifying the rows to extract
-#'
-#' @return the (dense) columns of the matrix corresponding to columns column_no
-#' @export
-extract_column_from_csc <- function(column_no, dat, indices, ind_ptr, n_rows, zero_based_idx = TRUE, row_idxs = NULL) {
-  if (zero_based_idx) { # make the vectors use 1-based indexing
-    indices <- indices + 1
-    ind_ptr <- ind_ptr + 1
-  }
-  sapply(X = column_no, FUN = function(i) {
-    internal_idx_range <- ind_ptr[i:(i + 1)] + c(0,-1)
-    non_zero_out <- dat[internal_idx_range[1]:internal_idx_range[2]]
-    external_idx <- indices[internal_idx_range[1]:internal_idx_range[2]]
-    full_out <- rep(0, n_rows)
-    full_out[external_idx] <- non_zero_out
-    if (!is.null(row_idxs)) full_out <- full_out[row_idxs]
-    return(full_out)
-  })
-}
