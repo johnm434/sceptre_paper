@@ -4,6 +4,7 @@
 
 # Set the machine.
 machine=local
+echo Running on machine $machine.
 
 # Obtain the filepaths to the code and "offsite" directories
 code_dir=$(bash get_file_paths.bash $machine code)
