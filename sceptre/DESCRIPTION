@@ -16,7 +16,7 @@ Depends:
     VGAM,
     tidyverse,
     bigstatsr,
-    R (>= 3.10)
+    R (>= 3.5)
 Suggests:
     knitr,
     rmarkdown
