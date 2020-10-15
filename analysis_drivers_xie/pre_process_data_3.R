@@ -3,7 +3,7 @@ args <- commandArgs(trailingOnly = TRUE)
 code_dir <- if (is.na(args[1])) "/Users/timbarry/Box/SCEPTRE/sceptre_paper/" else args[1]
 source(paste0(code_dir, "/analysis_drivers_xie/paths_to_dirs.R"))
 packs <- c("rhdf5", "stringr", "openxlsx", "ravel")
-for (pack in pakcs) suppressPackageStartupMessages(library(pack, character.only = TRUE))
+for (pack in packs) suppressPackageStartupMessages(library(pack, character.only = TRUE))
 
 ###################
 # Expression matrix
