@@ -9,7 +9,7 @@ verify_all_packages_available <- function(df) {
     if(!(curr_package %in% my_packs)) {
       curr_loc <- as.character(df[[i, "loc"]])
       if (curr_loc == "CRAN")  {
-        install.packages(curr_package)
+        install.packages(curr_package, repos = "https://cloud.r-project.org")
       } else if (curr_loc == "Bioc") {
         if (!("BiocManager" %in% my_packs)) install.packages("BiocManager")
         library(BiocManager)
