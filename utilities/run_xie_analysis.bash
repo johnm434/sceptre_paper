@@ -16,7 +16,7 @@ offsite_dir=$(bash get_file_paths.bash $machine data_results)
 echo Initialize the offsite directory structure.
 # Rscript $code_dir"/analysis_drivers_xie/"check_directory_structure_1.R $code_dir $offsite_dir
 
-echo Download the data.
+echo Download the data. Note that one of the downloads must be done manually.
 # Rscript $code_dir"/analysis_drivers_xie/"download_data_2.R $code_dir $offsite_dir
 
 echo pre-process the data
