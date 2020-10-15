@@ -24,3 +24,10 @@ verify_all_packages_available <- function(df) {
     }
   }
 }
+
+# A small utility function to create strings representing all parent directories of s
+create_parent_directories <- function(s) {
+  dirs <- unlist(str_split(string = s, pattern = "/"))
+  out <- map(.x = 1:length(dirs), .f = function(i) paste0(dirs[1:i], collapse = "/"))
+  return(unlist(out))
+}
