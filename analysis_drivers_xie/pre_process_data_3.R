@@ -129,7 +129,7 @@ write.fst(x = gRNA_indic_matrix, path = paste0(processed_dir, "/gRNA_indicator_m
 ##############
 bulk_info <- read.xlsx(xlsxFile = paste0(raw_data_dir, "/bulk_rna_info.xlsx"), sheet = 3)
 bulk_info <- slice(bulk_info, 1:25) %>% select(library_name = Library.Name, gRNA = sgRNA, region = Region, biological_duplicate = Biological.Duplicate)
-bulk_df <- read_tsv(file = paste0(raw_data_dir, "/GSE129825_Libraries.FeatureCounts.ARL15_enhancer.txt"), col_types = "ccccciiiiiiiiiiiiiiiiiiiiiiiiii") %>% rename("PZ788" = "PZ778", "PZ778" = "PZ778_1")
+bulk_df <- suppressWarnings(read_tsv(file = paste0(raw_data_dir, "/GSE129825_Libraries.FeatureCounts.ARL15_enhancer.txt"), col_types = "ccccciiiiiiiiiiiiiiiiiiiiiiiiii")) %>% rename("PZ788" = "PZ778", "PZ778" = "PZ778_1")
 bulk_df <- filter(bulk_df, Geneid %in% all_protein_coding_genes)
 
 write.fst(x = bulk_info, path = paste0(processed_dir, "/bulk_RNAseq_info.fst"))
