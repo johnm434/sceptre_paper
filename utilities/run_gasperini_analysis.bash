@@ -46,4 +46,4 @@ seq 1 $n_pair_pods | xargs -I{} -n 1 -P 3 Rscript $code_dir"/analysis_drivers_ga
 wait
 
 echo Collect and save results.
-Rscript $code_dir"/analysis_drivers/"aggregate_results_9.R $code_dir $offsite_dir
+Rscript $code_dir"/analysis_drivers_gasp/"aggregate_results_9.R $code_dir $offsite_dir
