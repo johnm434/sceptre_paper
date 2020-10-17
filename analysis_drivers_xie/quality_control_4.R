@@ -19,3 +19,10 @@ gene_expression_p <- big_apply(exp_mat, function(X, ind) colMeans(X[,ind] >= 1))
 highly_expressed_genes <- gene_ids[which(gene_expression_p >= 0.05)]
 gRNA_gene_pairs <- tibble(gene_id = highly_expressed_genes, gRNA_id = gRNA_id)
 write.fst(gRNA_gene_pairs, paste0(processed_dir, "/gRNA_gene_pairs.fst"))
+
+# Finally, partition the cells into exploratory and validation sets
+set.seed(1234)
+n_cells <- exp_mat_t$ncol
+exploratory_cells <- sample(x = 1:n_cells, size = floor(n_cells/2), replace = FALSE) %>% sort()
+validation_cells <- (1:n_cells)[-exploratory_cells]
+saveRDS(object = list(exploratory_cells = exploratory_cells, validation_cells = validation_cells), file = paste0(processed_dir, "/cell_subsets.rds"))

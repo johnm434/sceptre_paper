@@ -10,8 +10,8 @@ covariate_matrix <- read.fst(paste0(processed_dir, "/covariate_model_matrix.fst"
 cell_gene_expression_matrix <- readRDS(paste0(processed_dir, "/exp_mat_metadata.rds")) %>% load_fbm
 ordered_gene_ids <- readRDS(paste0(processed_dir, "/ordered_genes.RDS"))
 gRNA_indicator_matrix_fp <- paste0(processed_dir, "/gRNA_indicator_matrix.fst")
-cell_subset <- NULL
+cell_subset <- readRDS(paste0(processed_dir, "/cell_subsets.rds"))[["exploratory_cells"]]
 seed <- 1234
 B <- 500
-pod_sizes <- c(gene = 10, gRNA = 1, pair = 10)
+pod_sizes <- c(gene = 5, gRNA = 1, pair = 5)
 select_sizes <- NULL
