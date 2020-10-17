@@ -162,22 +162,35 @@ run_gRNA_precomputation <- function(gRNA_indicators, covariate_matrix) {
 run_gene_precomputation <- function(expressions, covariate_matrix, gene_precomp_size) {
   # cases on gene_precomp_size
   if (is.null(gene_precomp_size)) { # no size supplied; use glm.nb to estimate size and fit model
+
+    backup_2 <- function(pois_fit) {
+      theta.mm(y = expressions, mu = pois_fit$fitted.values, dfr = pois_fit$df.residual)
+    }
     backup <- function() {
       pois_fit <- glm(expressions ~ ., data = covariate_matrix, family = poisson())
-      gene_precomp_size_out <- theta.ml(expressions, pois_fit$fitted.values)[1]
+      gene_precomp_size_out <- tryCatch({
+        theta.ml(expressions, pois_fit$fitted.values, limit = 50)[1]
+      }, error = function(e) backup_2(pois_fit), warning = function(w) backup_2(pois_fit))
       fit_nb <- vglm(formula = expressions ~ ., family = negbinomial.size(gene_precomp_size_out), data = covariate_matrix)
       fitted_vals <- as.numeric(fittedvlm(fit_nb))
+      list(fitted_vals = fitted_vals, gene_precomp_size_out = gene_precomp_size_out)
     }
-    tryCatch({
+
+    result <- tryCatch({
       fit_nb <- glm.nb(formula = expressions ~ ., data = covariate_matrix)
       fitted_vals <- as.numeric(fit_nb$fitted.values)
       gene_precomp_size_out <- fit_nb$theta
+      list(fitted_vals = fitted_vals, gene_precomp_size_out = gene_precomp_size_out)
     }, error = function(e) backup(), warning = function(w) backup())
+
+    fitted_vals <- result$fitted_vals; gene_precomp_size_out <- result$gene_precomp_size_out
+
   } else { # size supplied; use vglm to fit model
     gene_precomp_size_out <- gene_precomp_size
     fit_nb <- vglm(formula = expressions ~ ., family = negbinomial.size(gene_precomp_size_out), data = covariate_matrix)
     fitted_vals <- as.numeric(fittedvlm(fit_nb))
   }
+
   gene_precomp_offsets_out <- log(fitted_vals)
   out <- list(gene_precomp_offsets = gene_precomp_offsets_out, gene_precomp_size = gene_precomp_size_out)
   return(out)
