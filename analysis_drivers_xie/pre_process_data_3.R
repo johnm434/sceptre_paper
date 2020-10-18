@@ -89,7 +89,7 @@ raw_fs <- list.files(raw_data_dir)
 gRNA_files <- paste0(raw_data_dir, "/", grep(pattern = "sgRNA-enrichment_5K-sgRNAs_Batch", x = raw_fs, value = TRUE))
 res <- map(.x = gRNA_files, .f = function(curr_file) {
   print(paste("Working on file", curr_file))
-  curr_gRNA_count_matrix <- read_tsv(file = curr_file, col_names = c("cell_barcode", "total_read_count", "total_umi_count", "gRNA_spacer_seqs", "read_counts", "umi_counts"), col_types = c("cccccc")) %>% select(cell_barcode, gRNA_spacer_seqs, umi_counts)
+  curr_gRNA_count_matrix <- read_tsv(file = curr_file, col_names = c("cell_barcode", "total_read_count", "total_umi_count", "gRNA_spacer_seqs", "read_counts", "umi_counts"), col_types = c("cccccc")) %>% select(cell_barcode, gRNA_spacer_seqs, umi_counts, total_umi_count)
   cell_barcodes <- pull(curr_gRNA_count_matrix, cell_barcode)
   curr_batch_gRNA_umi_counts <- sapply(X = 1:nrow(curr_gRNA_count_matrix), FUN = function(row_id) {
     r <- curr_gRNA_count_matrix[row_id,]
@@ -100,11 +100,12 @@ res <- map(.x = gRNA_files, .f = function(curr_file) {
     names(curr_counts) <- arl15_gRNA_spacer_seqs
     curr_counts
   }) %>% t()
-  list(cell_barcodes = cell_barcodes, umi_count_matrix = curr_batch_gRNA_umi_counts)
+  list(cell_barcodes = cell_barcodes, umi_count_matrix = curr_batch_gRNA_umi_counts, total_umis = as.integer(curr_gRNA_count_matrix$total_umi_count))
 })
 
 gRNA_count_matrix <- map(.x = res, .f = function(x) x$umi_count_matrix) %>% reduce(.f = rbind)
 cell_barcodes <- map(.x = res, .f = function(x) x$cell_barcodes) %>% reduce(.f = c)
+cell_gRNA_umi_counts <- map(.x = res, function(x) x$total_umis) %>% reduce(.f = c)
 
 # Now, we modify the gRNA UMI count matrix to threshold the data; we use the method proposed by xie;
 gRNA_count_matrix_thresh <- apply(X = gRNA_count_matrix, MARGIN = 2, FUN = function(column) {
@@ -114,15 +115,20 @@ gRNA_count_matrix_thresh <- apply(X = gRNA_count_matrix, MARGIN = 2, FUN = funct
 })
 gRNA_indic <- apply(X = gRNA_count_matrix_thresh, MARGIN = 1, FUN = function(r) any(r))
 
-# Finally, confirm that the cell barcode order for the gRNA indicator matrix matches that of the cell-by-gene expression matrix and cell-specific covariate matrix.
+# Finally, confirm that the cell barcode order for the gRNA indicator matrix matches that of the cell-by-gene expression matrix and cell-specific covariate matrix. Also, append the gRNA UMI count to the cell covariate matrix.
 cell_covariate_matrix <- read.fst(paste0(processed_dir, "/cell_covariate_matrix.fst"))
 cell_barcodes_to_check <- pull(cell_covariate_matrix, ordered_cell_barcodes) %>% gsub(pattern = "-1", replacement = "")
-m <- match(x = cell_barcodes_to_check, table = cell_barcodes)
+m <- match(x = cell_barcodes_to_check, table = cell_barcodes) # There will be some na's.
 gRNA_indic_ordered <- gRNA_indic[m]
+cell_gRNA_umi_counts <- cell_gRNA_umi_counts[m]
 
-# Put into data frame form
+# Put into data frame form and save
 gRNA_indic_matrix <- data.frame(arl15_enh = gRNA_indic_ordered)
 write.fst(x = gRNA_indic_matrix, path = paste0(processed_dir, "/gRNA_indicator_matrix.fst"))
+
+# Append the gRNA UMI counts to the cell-specific covariate matrix.
+cell_covariate_matrix <- mutate(cell_covariate_matrix, tot_gRNA_umis = cell_gRNA_umi_counts)
+write.fst(cell_covariate_matrix, paste0(processed_dir, "/cell_covariate_matrix.fst"))
 
 ##############
 # Bulk RNA-seq
