@@ -12,9 +12,6 @@ deactivate_sink()
 \arguments{
 \item{log_file_name}{the name of the log file in which to sink the output (including the file path)}
 }
-\value{
-
-}
 \description{
 A convenience function for programs that run at scale. activate_sink activates the sink to the log file, and deactivate_sink deactivates the sink.
 }

@@ -29,4 +29,10 @@ echo Construct model covariate matrix and perform quality control.
 echo Run the sceptre analysis at scale.
 parameter_file=$code_dir"/analysis_drivers_xie/sceptre_function_args.R"
 sceptre_at_scale_bash_dir=$code_dir"/sceptre_at_scale_bash"
-bash $code_dir"/sceptre_at_scale_bash/"run_sceptre_at_scale.bash $sceptre_at_scale_bash_dir $offsite_dir $parameter_file $n_processors
+# bash $code_dir"/sceptre_at_scale_bash/"run_sceptre_at_scale.bash $sceptre_at_scale_bash_dir $offsite_dir $parameter_file $n_processors
+
+echo Create dictionary for non-sceptre methods.
+n_pairs=$(Rscript $code_dir"/analysis_drivers_xie/create_non_sceptre_dict_5.R" $offsite_dir $parameter_file)
+
+# Run the parametric negative binomial analysis
+seq 1 $n_pairs | xargs -I{} -n 1 -P $n_processors Rscript $code_dir"/analysis_drivers_xie/run_parametric_nb_6.R" $offsite_dir $parameter_file {} &

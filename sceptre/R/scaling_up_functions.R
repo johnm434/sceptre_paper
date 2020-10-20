@@ -6,8 +6,7 @@
 #' A convenience function for programs that run at scale. activate_sink activates the sink to the log file, and deactivate_sink deactivates the sink.
 #'
 #' @param log_file_name the name of the log file in which to sink the output (including the file path)
-#'
-#' @return
+#' @export
 activate_sink <- function(log_file_name) {
   if (file.exists(log_file_name)) file.remove(log_file_name)
   sink(log_file_name)
@@ -15,6 +14,7 @@ activate_sink <- function(log_file_name) {
 }
 
 #' @rdname activate_sink
+#' @export
 deactivate_sink <- function() {
   sink(NULL, type = "message")
   sink()
@@ -29,7 +29,7 @@ deactivate_sink <- function() {
 #' @param pod_size size of the pods
 #' @param precomp_base_filename base name of the file (specified with full file path) in which to store the precomputation.
 #'
-#' @return
+#' @export
 create_dictionary <- function(ids, pod_size) {
   if (length(ids) <= pod_size) {
     out <- tibble(id = ids, pod_id = 1)
@@ -111,6 +111,7 @@ create_and_store_dictionaries <- function(gRNA_gene_pairs, gene_precomp_dir, gRN
 #' covariate_matrix <- read.fst("/Volumes/tims_new_drive/research/sceptre_files/data/gasperini/processed/cell_covariate_model_matrix.fst")
 #' cell_subset <- readRDS("/Volumes/tims_new_drive/research/sceptre_files/data/gasperini/processed/cells_to_keep.rds")
 run_gRNA_precomputation_at_scale <- function(pod_id, gRNA_precomp_dir, gRNA_indicator_matrix_fp, covariate_matrix, cell_subset = NULL, log_dir = NULL) {
+  # Activate the sink for the log file
   if (!is.null(log_dir)) activate_sink(paste0(log_dir, "/gRNA_precomp_", pod_id, ".Rout"))
   # subset covariate matrix according to cell subset
   if (!is.null(cell_subset)) covariate_matrix <- covariate_matrix[cell_subset,]

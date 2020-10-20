@@ -13,9 +13,6 @@ create_dictionary(ids, pod_size)
 
 \item{precomp_base_filename}{base name of the file (specified with full file path) in which to store the precomputation.}
 }
-\value{
-
-}
 \description{
 Create a dictionary that maps named elements (gRNAs, genes, or gRNA pairs) to files for a given "pod" size.
 }
