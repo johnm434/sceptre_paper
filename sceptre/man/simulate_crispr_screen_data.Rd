@@ -2,63 +2,49 @@
 % Please edit documentation in R/simulation_functions.R
 \name{simulate_crispr_screen_data}
 \alias{simulate_crispr_screen_data}
-\title{Simulate CRISPR screen data.}
+\title{Simulate CRISPR screen data}
 \usage{
 simulate_crispr_screen_data(
-  num_cells,
+  n_cells,
   grna_mean_prob,
-  covariate_sampler,
   mRNA_mean_expression,
-  gRNA_effect,
-  covariate_effects,
+  covariate_effects_gRNA,
+  covariate_effects_gene,
   zero_inflation,
   neg_binom_size,
   seed = NULL
 )
 }
 \arguments{
-\item{num_cells}{number of cells in experiment}
+\item{n_cells}{number of cells}
 
-\item{grna_mean_prob}{mean number of cells perturbed (absent covariates)}
+\item{grna_mean_prob}{mean probability of gRNA presence across enhancers (absent covariates)}
 
-\item{covariate_sampler}{a list of functions. Each function in this list takes as an argument num_cells and returns num_cells random variates.}
+\item{mRNA_mean_expression}{mean expression level of gene across genes (absent covariates)}
 
-\item{mRNA_mean_expression}{mean mRNA expression of the cell (absent covariates)}
+\item{covariate_effects_gRNA}{the effect of the technical covariate on gRNA presence probability; length equals number of enhancers}
 
-\item{gRNA_effect}{effect of the gRNA perturbation on mRNA expression}
+\item{covariate_effects_gene}{the effect of the technical covariate on mean gene expression; length equals number of genes}
 
-\item{covariate_effects}{a numeric vector indicating the covariate effects on mRNA expression}
+\item{zero_inflation}{zero inflation rate (between 0 and 1)}
 
-\item{zero_inflation}{a numeric scalar between 0 and 1 (inclusive) giving the mean fraction of cell expressions set to zero}
+\item{neg_binom_size}{size of the negative binomial distributions for gene expression}
 
-\item{neg_binom_size}{size parameter for the negative binomial model}
-
-\item{seed}{a seed to the random number generator}
+\item{seed}{(optonal) seed to the random number generator}
 }
 \value{
-a list containing (i) the expression vector Y, (ii) the data frame of covariates, and (iii) the gRNA presence indicator vector.
+list with components (i) cell_by_gene_expressions, (ii) cell_by_enhancer_perturbation_indicators, and (iii) Z
 }
 \description{
-A function to simulate pooled CRISPR screen data.
+Simulate CRISPR screen data
 }
 \examples{
-num_cells <- 1000
-grna_mean_prob <- 0.2
-covariate_sampler <- list(
- cell_size = runif,
- cell_cycle = function(x) {runif(n = x, min = 0, max = 1)}
+r <- simulate_crispr_screen_data(n_cells = 1000,
+grna_mean_prob = 0.2,
+mRNA_mean_expression = 40,
+covariate_effects_gRNA = rep(4, 10),
+covariate_effects_gene = rep(2, 50),
+zero_inflation = 0,
+neg_binom_size = 2
 )
-mRNA_mean_expression <- 40
-gRNA_effect <- 4
-covariate_effects <- c(2, 1)
-zero_inflation <- 0
-neg_binom_size <- 2
-simulated_data <- simulate_crispr_screen_data(num_cells,
- grna_mean_prob,
- covariate_sampler,
- mRNA_mean_expression,
- gRNA_effect,
- covariate_effects,
- zero_inflation,
- neg_binom_size)
 }

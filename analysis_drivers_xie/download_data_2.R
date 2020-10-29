@@ -44,3 +44,12 @@ dest <- paste0(raw_data_dir, "/bulk_rna_info.xlsx")
 download.file(url = "https://ars.els-cdn.com/content/image/1-s2.0-S2211124719313956-mmc3.xlsx", destfile = dest)
 
 # Download the Genes.xlsx file from this url: https://osf.io/edjzv/ (source: Human protein-coding genes and gene feature statistics in 2019 by Piovesan et al in BMC Research Notes)
+
+###############################
+# 4. Results from other authors
+###############################
+dest <- paste0(raw_data_dir, "/hypergeometric_pvals_arl15_down.mat")
+download.file(url = "https://github.com/russellxie/Global-analysis-K562-enhancers/blob/master/Notebooks/Data/Hypergeometric_pvals/chr5-54325645-54326045-down_log-pval.mat?raw=true", destfile = dest)
+
+dest <- paste0(raw_data_dir, "/hypergeometric_pvals_arl15_up.mat")
+download.file(url = "https://github.com/russellxie/Global-analysis-K562-enhancers/blob/master/Notebooks/Data/Hypergeometric_pvals/chr5-54325645-54326045-up_log-pval.mat?raw=true", destfile = dest)

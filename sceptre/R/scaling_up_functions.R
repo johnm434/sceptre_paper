@@ -70,7 +70,7 @@ create_and_store_dictionaries <- function(gRNA_gene_pairs, gene_precomp_dir, gRN
 
   # 1. genes
   genes <- unique(gRNA_gene_pairs$gene_id)
-  gene_dictionary <- create_dictionary(ids = genes, pod_size = pod_sizes[["gene"]]) %>% mutate(offset_file = paste0(gene_precomp_dir, "/gene_offsets_", pod_id, ".fst") %>% factor(), size_file = paste0(gene_precomp_dir, "/gene_size_", pod_id, ".rds") %>% factor())
+  gene_dictionary <- create_dictionary(ids = genes, pod_size = pod_sizes[["gene"]]) %>% mutate(size_unreg_file = paste0(gene_precomp_dir, "/gene_size_unreg_", pod_id, ".rds") %>% factor(), geom_mean_file = paste0(gene_precomp_dir, "/gene_geom_mean_", pod_id, ".rds") %>% factor(), offset_file = paste0(gene_precomp_dir, "/gene_offsets_", pod_id, ".fst") %>% factor(), size_reg_file =  paste0(gene_precomp_dir, "/size_reg_file.rds") %>% factor())
   gene_dictionary_fp <- paste0(gene_precomp_dir, "/gene_dictionary.fst")
   write.fst(gene_dictionary, gene_dictionary_fp)
 
@@ -131,58 +131,98 @@ run_gRNA_precomputation_at_scale <- function(pod_id, gRNA_precomp_dir, gRNA_indi
   if (!is.null(log_dir)) deactivate_sink()
 }
 
+# Internal gene precomputation at scale functions
+run_gene_precomputation_helper <- function(gene_precomp_dir, cell_gene_expression_matrix, ordered_gene_ids, covariate_matrix, cell_subset = NULL, log_dir = NULL) {
 
-#' Run gene precomputation at scale
+}
+
+#' Run_gene_precomputation_at_scale_round_1
 #'
-#' @param pod_id ID of the gene pod on which to run the precomputation
-#' @param gene_precomp_dir file path to the gene precomputation directory
-#' @param cell_gene_expression_matrix an FBM containing the expression data (rows cells, columns genes)
-#' @param ordered_gene_ids the gene IDs (i.e., names)
+#' This function runs the first round of gene precomputations. In particular, it computes the raw dispersion estimate and log geometric mean of each gene. It saves the results in the gene_precomp directory.
+#'
+#' @param pod_id pod id
+#' @param gene_precomp_dir location of the gene precomputation directory
+#' @param cell_gene_expression_matrix the cell-by-gene expression matrix
+#' @param ordered_gene_ids the ordered gene ids (i.e., column names of the above matrix)
 #' @param covariate_matrix the cell-specific covariate matrix
-#' @param cell_subset (optional) integer vector identifying the cells to use in the model
-#' @param gene_sizes (optional) a vector of already-estimated (or known) gene sizes
-#' @param log_dir file path to the directory in which to sink the log output
+#' @param cell_subset (optional) vector indicating subset of cells to use
+#' @param log_dir (optional) directory in which to sink the log file
 #'
-#' @return NULL
 #' @export
-#'
-#' @examples
-#' pod_id <- 1
-#' gene_precomp_dir <- "/Volumes/tims_new_drive/research/sceptre_files/data/gasperini/precomp/gene/"
-#' cell_gene_expression_matrix_metadata <- readRDS("/Volumes/tims_new_drive/research/sceptre_files/data/gasperini/processed/expression_FBM_metadata.rds")
-#' cell_gene_expression_matrix <- load_fbm(cell_gene_expression_matrix_metadata)
-#' covariate_matrix <- read.fst("/Volumes/tims_new_drive/research/sceptre_files/data/gasperini/processed/cell_covariate_model_matrix.fst")
-#' cell_subset <- readRDS("/Volumes/tims_new_drive/research/sceptre_files/data/gasperini/processed/cells_to_keep.rds")
-#' ordered_gene_ids <- readRDS("/Volumes/tims_new_drive/research/sceptre_files/data/gasperini/processed/ordered_gene_ids.RDS")
-run_gene_precomputation_at_scale <- function(pod_id, gene_precomp_dir, cell_gene_expression_matrix, ordered_gene_ids, covariate_matrix, cell_subset = NULL, log_dir = NULL, gene_sizes = NULL) {
-  if (!is.null(log_dir)) activate_sink(paste0(log_dir, "/gene_precomp_", pod_id, ".Rout"))
-  # subset covariate matrix by rows
+run_gene_precomputation_at_scale_round_1 <- function(pod_id, gene_precomp_dir, cell_gene_expression_matrix, ordered_gene_ids, covariate_matrix, cell_subset = NULL, log_dir = NULL) {
+  if (!is.null(log_dir)) activate_sink(paste0(log_dir, "/gene_precomp_round_1_pod", pod_id, ".Rout"))
   if (!is.null(cell_subset)) covariate_matrix <- covariate_matrix[cell_subset,]
-  # obtain the genes on which to preform the precomputation
   gene_dictionary <- read.fst(paste0(gene_precomp_dir, "/gene_dictionary.fst")) %>% filter(pod_id == !!pod_id)
   gene_ids <- gene_dictionary %>% pull(id) %>% as.character()
-
-  # Run the precomputations
   precomps <- map(gene_ids, function(gene_id) {
-    cat(paste0("Running precomputation for gene ", gene_id, ".\n"))
-    integer_id <- which(gene_id == ordered_gene_ids)
-    expressions <- cell_gene_expression_matrix[,integer_id]
+    cat(paste0("Running precomputation round 1 for gene ", gene_id, ".\n"))
+    expressions <- cell_gene_expression_matrix[,which(gene_id == ordered_gene_ids)]
     if (!is.null(cell_subset)) expressions <- expressions[cell_subset]
-    curr_gene_size <- gene_sizes[[gene_id]]
-    run_gene_precomputation(expressions = expressions, covariate_matrix = covariate_matrix, gene_precomp_size = curr_gene_size)
+    unreg_size <- run_gene_precomputation(expressions = expressions, covariate_matrix = covariate_matrix, gene_precomp_size = NULL)[["gene_precomp_size"]]
+    gene_log_geom_mean <- log_geom_mean(expressions)
+    return(list(unreg_size = unreg_size, gene_log_geom_mean = gene_log_geom_mean))
   })
   names(precomps) <- gene_ids
-  out_offsets <- map_dfc(precomps, function(l) l$gene_precomp_offsets)
-  out_sizes <- map_dbl(precomps, function(l) l$gene_precomp_size)
+  out_unreg_sizes <- map_dbl(precomps, function(l) l$unreg_size)
+  out_log_geom_means <- map_dbl(precomps, function(l) l$gene_log_geom_mean)
 
-  # save the precomputations
-  offset_save_fp <- (gene_dictionary %>% pull(offset_file))[1] %>% as.character()
-  size_save_fp <- (gene_dictionary %>% pull(size_file))[1] %>% as.character()
-  write.fst(out_offsets, offset_save_fp)
-  saveRDS(out_sizes, size_save_fp)
+  unreg_sizes_save_fp <- (gene_dictionary %>% pull(size_unreg_file))[1] %>% as.character()
+  saveRDS(object = out_unreg_sizes, file = unreg_sizes_save_fp)
+  geom_means_save_fp <- (gene_dictionary %>% pull(geom_mean_file))[1] %>% as.character()
+  saveRDS(object = out_log_geom_means, file = geom_means_save_fp)
   if (!is.null(log_dir)) deactivate_sink()
 }
 
+
+#' Regularize genes at scale
+#'
+#' @param gene_precomp_dir location of the gene precomputation directory
+#' @param log_dir location of the directory in which to sink the log file
+#' @export
+regularize_gene_sizes_at_scale <- function(gene_precomp_dir, log_dir = NULL) {
+  if (!is.null(log_dir)) activate_sink(paste0(log_dir, "/gene_precomp_regularize_sizes", ".Rout"))
+  file_names <- list.files(gene_precomp_dir)
+  gene_size_unreg_files <- paste0(gene_precomp_dir, "/", grep(pattern = 'gene_size_unreg_[0-9]+.rds', x = file_names, value = TRUE))
+  gene_geom_mean_files <- paste0(gene_precomp_dir, "/", grep(pattern = 'gene_geom_mean_[0-9]+.rds', x = file_names, value = TRUE))
+  load_distributed_vector <- function(f_names) f_names %>% map(readRDS) %>% reduce(c)
+  gene_sizes_unreg <- load_distributed_vector(gene_size_unreg_files)
+  gene_geom_means <- load_distributed_vector(gene_geom_mean_files)
+  if (!all(names(gene_sizes_unreg) == names(gene_geom_means))) {
+    gene_sizes_unreg <- gene_sizes_unreg[order(names(gene_sizes_unreg))]
+    gene_geom_means <- gene_geom_means[order(names(gene_geom_means))]
+  }
+  cat("Regularizing gene sizes.\n")
+  sizes_reg <- regularize_thetas(genes_log_gmean = gene_geom_means, theta = gene_sizes_unreg, plot_me = FALSE)
+  names(sizes_reg) <- names(gene_sizes_unreg)
+  sizes_reg_save_fp <- (read.fst(paste0(gene_precomp_dir, "/gene_dictionary.fst"), "size_reg_file") %>% pull())[1] %>% as.character()
+  saveRDS(object = sizes_reg, file = sizes_reg_save_fp)
+  if (!is.null(log_dir)) deactivate_sink()
+}
+
+
+run_gene_precomputation_at_scale_round_2 <- function(pod_id, gene_precomp_dir, cell_gene_expression_matrix, ordered_gene_ids, covariate_matrix, cell_subset = NULL, log_dir = NULL) {
+  if (!is.null(log_dir)) activate_sink(paste0(log_dir, "/gene_precomp_round_1_pod", pod_id, ".Rout"))
+  if (!is.null(cell_subset)) covariate_matrix <- covariate_matrix[cell_subset,]
+  gene_dictionary <- read.fst(paste0(gene_precomp_dir, "/gene_dictionary.fst")) %>% filter(pod_id == !!pod_id)
+  gene_ids <- gene_dictionary %>% pull(id) %>% as.character()
+  precomps <- map(gene_ids, function(gene_id) {
+    cat(paste0("Running precomputation round 1 for gene ", gene_id, ".\n"))
+    expressions <- cell_gene_expression_matrix[,which(gene_id == ordered_gene_ids)]
+    if (!is.null(cell_subset)) expressions <- expressions[cell_subset]
+    unreg_size <- run_gene_precomputation(expressions = expressions, covariate_matrix = covariate_matrix, gene_precomp_size = NULL)[["gene_precomp_size"]]
+    gene_log_geom_mean <- log_geom_mean(expressions)
+    return(list(unreg_size = unreg_size, gene_log_geom_mean = gene_log_geom_mean))
+  })
+  names(precomps) <- gene_ids
+  out_unreg_sizes <- map_dbl(precomps, function(l) l$unreg_size)
+  out_log_geom_means <- map_dbl(precomps, function(l) l$gene_log_geom_mean)
+
+  unreg_sizes_save_fp <- (gene_dictionary %>% pull(size_unreg_file))[1] %>% as.character()
+  saveRDS(object = out_unreg_sizes, file = unreg_sizes_save_fp)
+  geom_means_save_fp <- (gene_dictionary %>% pull(geom_mean_file))[1] %>% as.character()
+  saveRDS(object = out_log_geom_means, file = geom_means_save_fp)
+  if (!is.null(log_dir)) deactivate_sink()
+}
 
 #' Run gRNA-gene pair analysis at scale
 #'
@@ -307,6 +347,8 @@ run_sceptre_at_scale <- function(gRNA_gene_pairs, gene_precomp_dir, gRNA_precomp
     apply_fun <- if (multi_processor) future_lapply else lapply
     x <- suppressWarnings(do.call(what = apply_fun, args = l))
   }
+
+  # We need to run two rounds of gene precomputation
 
   # Run the gene precomputation over all gene pods
   cat("Running precomputation over genes.\n")

@@ -30,7 +30,10 @@ rm(gene_df)
 h5_file <- h5_files[1]
 h5_handle <- H5Fopen(h5_file)
 all_sequenced_genes <- h5_handle$"/refgenome_hg38_CROP-Guide-MS2-2.1.0/gene_names"
-genes_in_use <- all_sequenced_genes[which(all_sequenced_genes %in% all_protein_coding_genes)]
+all_sequenced_genes_ids <-  h5_handle$"/refgenome_hg38_CROP-Guide-MS2-2.1.0/genes"
+protein_coding_genes_idxes <- which(all_sequenced_genes %in% all_protein_coding_genes)
+genes_in_use <- all_sequenced_genes[protein_coding_genes_idxes]
+genes_in_use_ids <- all_sequenced_genes_ids[protein_coding_genes_idxes]
 n_genes_in_use <- length(genes_in_use)
 H5Fclose(h5_handle)
 
@@ -73,6 +76,7 @@ for (h5_file in h5_files) {
 cell_covariate_matrix <- tibble(ordered_cell_barcodes = ordered_cell_barcodes, batch = batch)
 write.fst(x = cell_covariate_matrix, path = paste0(processed_dir, "/cell_covariate_matrix.fst"))
 saveRDS(object = genes_in_use, file = paste0(processed_dir, "/ordered_genes.RDS"))
+saveRDS(object = genes_in_use_ids, file = paste0(processed_dir, "/ordered_gene_ids.RDS"))
 
 ###############
 # gRNA UMI data
@@ -140,3 +144,21 @@ bulk_df <- filter(bulk_df, Geneid %in% all_protein_coding_genes)
 
 write.fst(x = bulk_info, path = paste0(processed_dir, "/bulk_RNAseq_info.fst"))
 write.fst(x = bulk_df, path = paste0(processed_dir, "/bulk_RNAseq.fst"))
+
+
+#############################
+# Xie hypergeometric p-values
+#############################
+
+suppressPackageStartupMessages(library(R.matlab))
+extract_p_vals_hypergeo <- function(p_vals_hypergeo) {
+  p_vals <- exp(p_vals_hypergeo$matrix[1,])
+  names(p_vals) <- all_sequenced_genes
+  return(p_vals)
+}
+
+xie_pfiles <- setNames(paste0(raw_data_dir, c("/hypergeometric_pvals_arl15_down.mat", "/hypergeometric_pvals_arl15_up.mat")), c("down", "up"))
+xie_pfiles_r <- xie_pfiles %>% map(readMat) %>% map(extract_p_vals_hypergeo)
+
+saveRDS(object = xie_pfiles_r$down, file = paste0(processed_dir, "/hypergeometric_arl15enh_pvals_down.rds"))
+saveRDS(object =  xie_pfiles_r$up, file = paste0(processed_dir, "/hypergeometric_arl15enh_pvals_up.rds"))

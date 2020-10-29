@@ -2,33 +2,7 @@
 #'
 #' Obtain the scaled data matrix from a normalized/scaled Seurat object.
 #'
-#' This function was copied and pased from the scMAGeCK package; Yang et al. wrote the function, not Katsevich et al.
-#'
-#' @param targetobj a Seurat object on which scale has already been performed
-#' @param scaled boolean; return the scaled data?
-#'
-#' @return the scaled expression data
-#' @export
-getscaledata <- function(targetobj, scaled = TRUE) {
-  # if scaled=FALSE, return raw.data
-  if ("scale.data" %in% names(attributes(targetobj))) {
-    if (scaled) {
-      scalef = targetobj@scale.data  # for version 2
-    } else {
-      scalef = targetobj@raw.data  # for version 2
-    }
-  } else {
-    if (scaled) {
-      scalef = GetAssayData(object = targetobj, slot = "scale.data")
-    } else {
-      scalef = GetAssayData(object = targetobj, slot = "counts")
-    }
-  }
-  return(scalef)
-}
-
-
-#' Single gene matrix regression
+#' This function was copied and pased from the scMAGeCK package; Yang et al. wrote the function, not Katsevich et al.#' Single gene matrix regression
 #'
 #' Obtain the X and Y matrices for a regression.
 #'
@@ -47,7 +21,7 @@ single_gene_matrix_regression <- function(targetobj, ngctrlgene = c("NonTargetin
   # return X matrix and Y matrix for regression note that all the ngctrlgene are merged into one
   # column, 'NegCtrl' if indmatrix is provided, the Xmat will be constructed from indmatrix
   outlier_threshold = 0.95
-  rawf = getscaledata(targetobj, scaled = FALSE)
+  rawf = targetobj@assays$RNA@counts %>% as.matrix()
   select_genes = rownames(rawf)[which(rowSums(as.matrix(rawf) != 0) >= ncol(rawf) * high_gene_frac)]
   if (is.null(selected_genes_list) == FALSE) {
     select_genes = select_genes[select_genes %in% selected_genes_list]
@@ -56,9 +30,8 @@ single_gene_matrix_regression <- function(targetobj, ngctrlgene = c("NonTargetin
     }
   }
   message(paste("Selected genes:", length(select_genes)))
-  # browser()
 
-  scalef = getscaledata(targetobj)
+  scalef = targetobj[["RNA"]]@data %>% as.matrix()
 
   if (is.null(indmatrix)) {
     select_cells = rownames(targetobj@meta.data)[which(!is.na(targetobj@meta.data$geneID))]
@@ -95,8 +68,7 @@ single_gene_matrix_regression <- function(targetobj, ngctrlgene = c("NonTargetin
       }
     }
     Xmat[, "NegCtrl"] = 1
-
-  }  # end if
+  }
 
   # remove outliers
   Ymat_outlier = apply(Ymat, 2, function(X) {
@@ -161,4 +133,51 @@ getsolvedmatrix <- function(Xm, Ym, lambda = 0.01) {
 
   Amat_g = solve(TMmat_g) %*% t(Xm) %*% Ym
   return(Amat_g)
+}
+
+
+#' Run scMaGECK analysis
+#'
+#' @param expression_matrix a matrix of cell-by-gene expressions
+#' @param gRNA_indic_matrix a matrix of cell-by-gRNA indicators
+#'
+#' @return p-values for each gRNA-gene pair
+#' @export
+#'
+#' @examples
+#' r <- simulate_crispr_screen_data(n_cells = 1000,
+#' grna_mean_prob = 0.2,
+#' mRNA_mean_expression = 40,
+#' covariate_effects_gRNA = rep(4, 10),
+#' covariate_effects_gene = rep(2, 50),
+#' zero_inflation = 0,
+#' neg_binom_size = 2
+#' )
+#' expression_matrix <- r$cell_by_gene_expressions
+#' gRNA_indic_matrix <- r$cell_by_enhancer_perturbation_indicators
+#' run_scMaGECK_analysis(expression_matrix, gRNA_indic_matrix)
+run_scMaGECK_analysis <- function(expression_matrix, gRNA_indic_matrix) {
+  expression_matrix_t <- t(expression_matrix)
+  row.names(expression_matrix_t) <- paste0("gene-", 1:nrow(expression_matrix_t))
+  colnames(expression_matrix_t) <- paste0("cell-", 1:ncol(expression_matrix_t))
+  row.names(gRNA_indic_matrix) <- paste0("cell-", 1:nrow(gRNA_indic_matrix))
+  colnames(gRNA_indic_matrix) <- paste0("gRNA-", 1:ncol(gRNA_indic_matrix))
+  s <- CreateSeuratObject(expression_matrix_t)
+
+  targetobj <- NormalizeData(s)
+  GENE_FRAC <- 0.00
+  SELECT_GENE <- row.names(expression_matrix_t)
+  ngctrlgenelist <- colnames(gRNA_indic_matrix)[ncol(gRNA_indic_matrix)]
+  ind_matrix <- gRNA_indic_matrix
+
+  mat_for_single_reg = single_gene_matrix_regression(targetobj,
+                                                     selected_genes_list = SELECT_GENE, ngctrlgene = ngctrlgenelist,
+                                                     indmatrix = ind_matrix, high_gene_frac = GENE_FRAC)
+  Xmat = mat_for_single_reg[[1]]
+  Ymat = mat_for_single_reg[[2]]
+  LAMBDA <- 0.01
+  Amat_pm_lst = getsolvedmatrix_with_permutation_cell_label(Xmat, Ymat, lambda = LAMBDA, npermutation = 500)
+  Amat = Amat_pm_lst[[1]]
+  Amat_pval = Amat_pm_lst[[2]]
+  return(Amat_pval)
 }

@@ -10,7 +10,7 @@ log_dir <- paste0(offsite_dir, "/logs/xie")
 gRNA_gene_pairs <- read.fst(paste0(processed_dir, "/gRNA_gene_pairs.fst"))
 covariate_matrix <- read.fst(paste0(processed_dir, "/covariate_model_matrix.fst"))
 cell_gene_expression_matrix <- readRDS(paste0(processed_dir, "/exp_mat_metadata.rds")) %>% load_fbm
-ordered_gene_ids <- readRDS(paste0(processed_dir, "/ordered_genes.RDS"))
+ordered_gene_ids <- readRDS(paste0(processed_dir, "/ordered_gene_ids.RDS"))
 gRNA_indicator_matrix_fp <- paste0(processed_dir, "/gRNA_indicator_matrix.fst")
 cell_subset <- readRDS(paste0(processed_dir, "/cell_subsets.rds"))[["exploratory_cells"]]
 seed <- 1234
