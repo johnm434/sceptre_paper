@@ -110,7 +110,7 @@ create_and_store_dictionaries <- function(gRNA_gene_pairs, gene_precomp_dir, gRN
 #' gRNA_indicator_matrix_fp <- "/Volumes/tims_new_drive/research/sceptre_files/data/gasperini/processed/gRNA_indicators.fst"
 #' covariate_matrix <- read.fst("/Volumes/tims_new_drive/research/sceptre_files/data/gasperini/processed/cell_covariate_model_matrix.fst")
 #' cell_subset <- readRDS("/Volumes/tims_new_drive/research/sceptre_files/data/gasperini/processed/cells_to_keep.rds")
-run_gRNA_precomputation_at_scale <- function(pod_id, gRNA_precomp_dir, gRNA_indicator_matrix_fp, covariate_matrix, cell_subset = NULL, log_dir = NULL) {
+run_gRNA_precomputation_at_scale <- function(pod_id, gRNA_precomp_dir, gRNA_indicator_matrix_fp, covariate_matrix, cell_subset, log_dir) {
   # Activate the sink for the log file
   if (!is.null(log_dir)) activate_sink(paste0(log_dir, "/gRNA_precomp_", pod_id, ".Rout"))
   # subset covariate matrix according to cell subset
@@ -131,10 +131,6 @@ run_gRNA_precomputation_at_scale <- function(pod_id, gRNA_precomp_dir, gRNA_indi
   if (!is.null(log_dir)) deactivate_sink()
 }
 
-# Internal gene precomputation at scale functions
-run_gene_precomputation_helper <- function(gene_precomp_dir, cell_gene_expression_matrix, ordered_gene_ids, covariate_matrix, cell_subset = NULL, log_dir = NULL) {
-
-}
 
 #' Run_gene_precomputation_at_scale_round_1
 #'
@@ -149,8 +145,8 @@ run_gene_precomputation_helper <- function(gene_precomp_dir, cell_gene_expressio
 #' @param log_dir (optional) directory in which to sink the log file
 #'
 #' @export
-run_gene_precomputation_at_scale_round_1 <- function(pod_id, gene_precomp_dir, cell_gene_expression_matrix, ordered_gene_ids, covariate_matrix, cell_subset = NULL, log_dir = NULL) {
-  if (!is.null(log_dir)) activate_sink(paste0(log_dir, "/gene_precomp_round_1_pod", pod_id, ".Rout"))
+run_gene_precomputation_at_scale_round_1 <- function(pod_id, gene_precomp_dir, cell_gene_expression_matrix, ordered_gene_ids, covariate_matrix, regularization_amount, cell_subset, log_dir) {
+  if (!is.null(log_dir)) activate_sink(paste0(log_dir, "/gene_precomp_round_1_pod_", pod_id, ".Rout"))
   if (!is.null(cell_subset)) covariate_matrix <- covariate_matrix[cell_subset,]
   gene_dictionary <- read.fst(paste0(gene_precomp_dir, "/gene_dictionary.fst")) %>% filter(pod_id == !!pod_id)
   gene_ids <- gene_dictionary %>% pull(id) %>% as.character()
@@ -159,17 +155,26 @@ run_gene_precomputation_at_scale_round_1 <- function(pod_id, gene_precomp_dir, c
     expressions <- cell_gene_expression_matrix[,which(gene_id == ordered_gene_ids)]
     if (!is.null(cell_subset)) expressions <- expressions[cell_subset]
     unreg_size <- run_gene_precomputation(expressions = expressions, covariate_matrix = covariate_matrix, gene_precomp_size = NULL)[["gene_precomp_size"]]
-    gene_log_geom_mean <- log_geom_mean(expressions)
-    return(list(unreg_size = unreg_size, gene_log_geom_mean = gene_log_geom_mean))
+    out <- list()
+    out$unreg_size <- unreg_size
+    if (regularization_amount > 0) {
+      gene_log_geom_mean <- log_geom_mean(expressions)
+      out$gene_log_geom_mean <- gene_log_geom_mean
+    }
+    return(out)
   })
+
   names(precomps) <- gene_ids
   out_unreg_sizes <- map_dbl(precomps, function(l) l$unreg_size)
-  out_log_geom_means <- map_dbl(precomps, function(l) l$gene_log_geom_mean)
+  if (regularization_amount > 0) out_log_geom_means <- map_dbl(precomps, function(l) l$gene_log_geom_mean)
 
   unreg_sizes_save_fp <- (gene_dictionary %>% pull(size_unreg_file))[1] %>% as.character()
   saveRDS(object = out_unreg_sizes, file = unreg_sizes_save_fp)
-  geom_means_save_fp <- (gene_dictionary %>% pull(geom_mean_file))[1] %>% as.character()
-  saveRDS(object = out_log_geom_means, file = geom_means_save_fp)
+  if (regularization_amount > 0) {
+    geom_means_save_fp <- (gene_dictionary %>% pull(geom_mean_file))[1] %>% as.character()
+    saveRDS(object = out_log_geom_means, file = geom_means_save_fp)
+  }
+
   if (!is.null(log_dir)) deactivate_sink()
 }
 
@@ -179,48 +184,63 @@ run_gene_precomputation_at_scale_round_1 <- function(pod_id, gene_precomp_dir, c
 #' @param gene_precomp_dir location of the gene precomputation directory
 #' @param log_dir location of the directory in which to sink the log file
 #' @export
-regularize_gene_sizes_at_scale <- function(gene_precomp_dir, log_dir = NULL) {
-  if (!is.null(log_dir)) activate_sink(paste0(log_dir, "/gene_precomp_regularize_sizes", ".Rout"))
-  file_names <- list.files(gene_precomp_dir)
-  gene_size_unreg_files <- paste0(gene_precomp_dir, "/", grep(pattern = 'gene_size_unreg_[0-9]+.rds', x = file_names, value = TRUE))
-  gene_geom_mean_files <- paste0(gene_precomp_dir, "/", grep(pattern = 'gene_geom_mean_[0-9]+.rds', x = file_names, value = TRUE))
-  load_distributed_vector <- function(f_names) f_names %>% map(readRDS) %>% reduce(c)
-  gene_sizes_unreg <- load_distributed_vector(gene_size_unreg_files)
-  gene_geom_means <- load_distributed_vector(gene_geom_mean_files)
-  if (!all(names(gene_sizes_unreg) == names(gene_geom_means))) {
-    gene_sizes_unreg <- gene_sizes_unreg[order(names(gene_sizes_unreg))]
-    gene_geom_means <- gene_geom_means[order(names(gene_geom_means))]
+regularize_gene_sizes_at_scale <- function(gene_precomp_dir, regularization_amount, log_dir) {
+  if (regularization_amount > 0) {
+    if (!is.null(log_dir)) activate_sink(paste0(log_dir, "/gene_precomp_regularize_sizes", ".Rout"))
+    file_names <- list.files(gene_precomp_dir)
+    gene_size_unreg_files <- paste0(gene_precomp_dir, "/", grep(pattern = 'gene_size_unreg_[0-9]+.rds', x = file_names, value = TRUE))
+    gene_geom_mean_files <- paste0(gene_precomp_dir, "/", grep(pattern = 'gene_geom_mean_[0-9]+.rds', x = file_names, value = TRUE))
+    load_distributed_vector <- function(f_names) f_names %>% map(readRDS) %>% reduce(c)
+    gene_sizes_unreg <- load_distributed_vector(gene_size_unreg_files)
+    gene_geom_means <- load_distributed_vector(gene_geom_mean_files)
+    if (!all(names(gene_sizes_unreg) == names(gene_geom_means))) {
+      gene_sizes_unreg <- gene_sizes_unreg[order(names(gene_sizes_unreg))]
+      gene_geom_means <- gene_geom_means[order(names(gene_geom_means))]
+    }
+    cat("Regularizing gene sizes.\n")
+    sizes_reg <- regularize_thetas(genes_log_gmean = gene_geom_means, theta = gene_sizes_unreg, plot_me = FALSE)
+    names(sizes_reg) <- names(gene_sizes_unreg)
+    sizes_reg_save_fp <- (read.fst(paste0(gene_precomp_dir, "/gene_dictionary.fst"), "size_reg_file") %>% pull())[1] %>% as.character()
+    saveRDS(object = sizes_reg, file = sizes_reg_save_fp)
+    if (!is.null(log_dir)) deactivate_sink()
   }
-  cat("Regularizing gene sizes.\n")
-  sizes_reg <- regularize_thetas(genes_log_gmean = gene_geom_means, theta = gene_sizes_unreg, plot_me = FALSE)
-  names(sizes_reg) <- names(gene_sizes_unreg)
-  sizes_reg_save_fp <- (read.fst(paste0(gene_precomp_dir, "/gene_dictionary.fst"), "size_reg_file") %>% pull())[1] %>% as.character()
-  saveRDS(object = sizes_reg, file = sizes_reg_save_fp)
-  if (!is.null(log_dir)) deactivate_sink()
 }
 
 
-run_gene_precomputation_at_scale_round_2 <- function(pod_id, gene_precomp_dir, cell_gene_expression_matrix, ordered_gene_ids, covariate_matrix, cell_subset = NULL, log_dir = NULL) {
-  if (!is.null(log_dir)) activate_sink(paste0(log_dir, "/gene_precomp_round_1_pod", pod_id, ".Rout"))
+#' Run gene precomputation at scale round 2
+#'
+#' Runs the second round of gene precomputations.
+#'
+#' @param pod_id pod id
+#' @param gene_precomp_dir gene precomp dir
+#' @param cell_gene_expression_matrix cell gene expression matrix
+#' @param ordered_gene_ids ordered gene ids
+#' @param covariate_matrix covariate matrix
+#' @param cell_subset cell subset
+#' @param log_dir directory in which to sink the logs
+#'
+#' @export
+run_gene_precomputation_at_scale_round_2 <- function(pod_id, gene_precomp_dir, cell_gene_expression_matrix, ordered_gene_ids, covariate_matrix, regularization_amount, cell_subset, log_dir) {
+  if (!is.null(log_dir)) activate_sink(paste0(log_dir, "/gene_precomp_round_2_pod_", pod_id, ".Rout"))
   if (!is.null(cell_subset)) covariate_matrix <- covariate_matrix[cell_subset,]
   gene_dictionary <- read.fst(paste0(gene_precomp_dir, "/gene_dictionary.fst")) %>% filter(pod_id == !!pod_id)
   gene_ids <- gene_dictionary %>% pull(id) %>% as.character()
-  precomps <- map(gene_ids, function(gene_id) {
-    cat(paste0("Running precomputation round 1 for gene ", gene_id, ".\n"))
+  if (regularization_amount > 0) {
+    gene_sizes <- readRDS(as.character(gene_dictionary$size_reg_file[1]))[gene_ids]
+  } else {
+    gene_sizes <- readRDS(as.character(gene_dictionary$size_unreg_file[1]))
+  }
+
+  offsets <- sapply(gene_ids, function(gene_id) {
+    cat(paste0("Running precomputation round 2 for gene ", gene_id, ".\n"))
     expressions <- cell_gene_expression_matrix[,which(gene_id == ordered_gene_ids)]
     if (!is.null(cell_subset)) expressions <- expressions[cell_subset]
-    unreg_size <- run_gene_precomputation(expressions = expressions, covariate_matrix = covariate_matrix, gene_precomp_size = NULL)[["gene_precomp_size"]]
-    gene_log_geom_mean <- log_geom_mean(expressions)
-    return(list(unreg_size = unreg_size, gene_log_geom_mean = gene_log_geom_mean))
-  })
-  names(precomps) <- gene_ids
-  out_unreg_sizes <- map_dbl(precomps, function(l) l$unreg_size)
-  out_log_geom_means <- map_dbl(precomps, function(l) l$gene_log_geom_mean)
+    dist_offsets <- run_gene_precomputation(expressions = expressions, covariate_matrix = covariate_matrix, gene_precomp_size = gene_sizes[[gene_id]])[["gene_precomp_offsets"]]
+    return(dist_offsets)
+  }) %>% as.data.frame()
 
-  unreg_sizes_save_fp <- (gene_dictionary %>% pull(size_unreg_file))[1] %>% as.character()
-  saveRDS(object = out_unreg_sizes, file = unreg_sizes_save_fp)
-  geom_means_save_fp <- (gene_dictionary %>% pull(geom_mean_file))[1] %>% as.character()
-  saveRDS(object = out_log_geom_means, file = geom_means_save_fp)
+  offsets_save_fp <- (gene_dictionary %>% pull(offset_file))[1] %>% as.character()
+  write.fst(x = offsets, path = offsets_save_fp)
   if (!is.null(log_dir)) deactivate_sink()
 }
 
@@ -243,12 +263,13 @@ run_gene_precomputation_at_scale_round_2 <- function(pod_id, gene_precomp_dir, c
 #'
 #' @return NULL
 #' @export
-run_gRNA_gene_pair_analysis_at_scale <- function(pod_id, gene_precomp_dir, gRNA_precomp_dir, results_dir, cell_gene_expression_matrix, ordered_gene_ids, gRNA_indicator_matrix_fp, covariate_matrix, cell_subset = NULL, seed = NULL, log_dir = NULL, B = 500) {
+run_gRNA_gene_pair_analysis_at_scale <- function(pod_id, gene_precomp_dir, gRNA_precomp_dir, results_dir, cell_gene_expression_matrix, ordered_gene_ids, gRNA_indicator_matrix_fp, covariate_matrix, regularization_amount, cell_subset, seed, log_dir, B) {
   if (!is.null(log_dir)) activate_sink(paste0(log_dir, "/result_", pod_id, ".Rout"))
 
   results_dict <- read.fst(paste0(results_dir, "/results_dictionary.fst")) %>% filter(pod_id == !!pod_id)
   gene_dict <- read.fst(paste0(gene_precomp_dir, "/gene_dictionary.fst"))
   gRNA_dict <- read.fst(paste0(gRNA_precomp_dir, "/gRNA_dictionary.fst"))
+  if (regularization_amount > 0) regularized_gene_sizes <- readRDS(gene_dict$size_reg_file[1] %>% as.character())[results_dict$gene_id]
 
   p_vals <- sapply(1:nrow(results_dict), function(i) {
     curr_gene <- results_dict[[i, "gene_id"]] %>% as.character()
@@ -258,12 +279,16 @@ run_gRNA_gene_pair_analysis_at_scale <- function(pod_id, gene_precomp_dir, gRNA_
     # Determine the file locations
     gene_precomp_locs <- filter(gene_dict, id == curr_gene)
     gene_offset_loc <- gene_precomp_locs %>% pull(offset_file) %>% as.character
-    gene_size_loc <- gene_precomp_locs %>% pull(size_file) %>% as.character
+    if (regularization_amount == 0) gene_size_loc <- gene_precomp_locs %>% pull(size_unreg_file) %>% as.character()
     gRNA_prcomp_loc <- filter(gRNA_dict, id == curr_gRNA) %>% pull(precomp_file) %>% as.character()
 
     # Load the appropriate data from disk into memory
     gene_precomp_offsets <- read.fst(path = gene_offset_loc, columns = curr_gene) %>% pull()
-    gene_precomp_size <- readRDS(file = gene_size_loc)[[curr_gene]]
+    if (regularization_amount > 0) {
+      gene_precomp_size <- regularized_gene_sizes[[curr_gene]]
+    } else {
+      gene_precomp_size <- readRDS(file = gene_size_loc)[[curr_gene]]
+    }
     gRNA_precomp <- read.fst(path = gRNA_prcomp_loc, columns = curr_gRNA) %>% pull()
     expressions <- cell_gene_expression_matrix[, which(curr_gene == ordered_gene_ids)]
     gRNA_indicators <- read.fst(path = gRNA_indicator_matrix_fp, columns = curr_gRNA) %>% pull() %>% as.integer()
@@ -318,23 +343,30 @@ collect_results <- function(results_dir, save_to_disk = TRUE) {
 #' @param ordered_gene_ids a character vector containing the names of the genes in the cell-by-gene expression matrix
 #' @param gRNA_indicator_matrix_fp a file-path to the gRNA indicator matrix, assumed to be stored as a dataframe in .fst format
 #' @param covariate_matrix a dataframe containing the cell-specific covariates to use in the model
-#' @param cell_subset an integer vector identifying the cells to use
+#' @param cell_subset (optional) an integer vector identifying the cells to use
+#' @param regularization_amount (optional, default 3) a non-negative scalar value indicating the amount of regularization to apply to the estimated gene sizes. 0 corresponds to no regularization at all, and greater values correspond to more regularization.
 #' @param pod_sizes (optional) a named integer vector containing entries for "gene," "gRNA," and "pair." The entries specify the number of elements (gene, gRNAs, or pairs) to include per "pod." This purely is for computational purposes.
 #' @param seed (optional) seed to the conditional randomization test subroutine
-#' @param log_dir (optional) a file-path to the directory containing the log-files.
+#' @param log_dir (optional) a file-path to the directory containing the log-files. If NULL, print everything to the standard output (i.e., R console).
 #' @param B (optional, default 500) number of resamples to draw in CRT subroutine
-#' @param gene_sizes (optional) vector of known gene sizes
 #' @param mutli_processor (opitional boolean, default TRUE) should this function use multiple processors?
 #'
-#' @return a dataframe containing the results (columns: gene, gRNA, p-value, BH-adjusted p-value)
+#' @return a dataframe containing the results (columns: gene, gRNA, p-value)
 #' @export
 #'
-run_sceptre_at_scale <- function(gRNA_gene_pairs, gene_precomp_dir, gRNA_precomp_dir, results_dir, cell_gene_expression_matrix, ordered_gene_ids, gRNA_indicator_matrix_fp, covariate_matrix, cell_subset = NULL, pod_sizes = c(gene = 100, gRNA = 500, pair = 200), seed = 1234, log_dir = NULL, B = 500, gene_sizes = NULL, multi_processor = TRUE) {
+#' @examples
+#' offsite_dir <- "/Volumes/tims_new_drive/research/sceptre_files"
+#' source("/Users/timbarry/Box/SCEPTRE/sceptre_paper/analysis_drivers_xie/sceptre_function_args.R")
+#' r <- run_sceptre_at_scale(gRNA_gene_pairs, gene_precomp_dir, gRNA_precomp_dir, results_dir, cell_gene_expression_matrix, ordered_gene_ids, gRNA_indicator_matrix_fp, covariate_matrix, cell_subset, regularization_amount, pod_sizes, seed, log_dir, B, multi_processor = TRUE)
+run_sceptre_at_scale <- function(gRNA_gene_pairs, gene_precomp_dir, gRNA_precomp_dir, results_dir, cell_gene_expression_matrix, ordered_gene_ids, gRNA_indicator_matrix_fp, covariate_matrix, cell_subset = NULL, regularization_amount = 3, pod_sizes = c(gene = 100, gRNA = 500, pair = 200), seed = 1234, log_dir = NULL, B = 500, multi_processor = TRUE) {
   # Load the future package for parallel computation
   if (multi_processor) {
     library(future.apply)
     plan(multisession)
   }
+
+  # Clear out the log directory (if non-null)
+  if (!is.null(log_dir)) file.remove(list.files(log_dir, full.names = TRUE))
 
   # First, create file dictionaries
   cat("Creating precomputation dictionaries.\n")
@@ -348,12 +380,20 @@ run_sceptre_at_scale <- function(gRNA_gene_pairs, gene_precomp_dir, gRNA_precomp
     x <- suppressWarnings(do.call(what = apply_fun, args = l))
   }
 
-  # We need to run two rounds of gene precomputation
+  # Run the first round of gene precomputations
+  cat("Running the first round of gene precomputations.\n")
+  run_big_computation(n_pods = dicts$n_pods[["gene"]],
+                      big_FUN = function(i) run_gene_precomputation_at_scale_round_1(i, gene_precomp_dir, cell_gene_expression_matrix, ordered_gene_ids, covariate_matrix, regularization_amount, cell_subset, log_dir),
+                      multi_processor)
 
-  # Run the gene precomputation over all gene pods
-  cat("Running precomputation over genes.\n")
-  run_big_computation(dicts$n_pods[["gene"]],
-                      function(i) run_gene_precomputation_at_scale(i, gene_precomp_dir, cell_gene_expression_matrix, ordered_gene_ids, covariate_matrix, cell_subset, log_dir, gene_sizes),
+  # Run the size estimate regularization
+  cat("Regularizing the estimated gene sizes.\n")
+  regularize_gene_sizes_at_scale(gene_precomp_dir, regularization_amount, log_dir)
+
+  # Run the second round of gene precomputations
+  cat("Running the second round of gene precomputations.\n")
+  run_big_computation(n_pods = dicts$n_pods[["gene"]],
+                      big_FUN = function(i) run_gene_precomputation_at_scale_round_2(i, gene_precomp_dir, cell_gene_expression_matrix, ordered_gene_ids, covariate_matrix, regularization_amount, cell_subset, log_dir),
                       multi_processor)
 
   # Run the precomputation over all gRNA pods
@@ -365,7 +405,7 @@ run_sceptre_at_scale <- function(gRNA_gene_pairs, gene_precomp_dir, gRNA_precomp
   # Run the gene-gRNA pair analysis over all pair pods
   cat("Running distilled CRT over gene-gRNA pairs.\n")
   run_big_computation(dicts$n_pods[["pairs"]],
-                      function(i) run_gRNA_gene_pair_analysis_at_scale(i, gene_precomp_dir, gRNA_precomp_dir, results_dir, cell_gene_expression_matrix, ordered_gene_ids, gRNA_indicator_matrix_fp, covariate_matrix, cell_subset, seed, log_dir, B),
+                      function(i) run_gRNA_gene_pair_analysis_at_scale(i, gene_precomp_dir, gRNA_precomp_dir, results_dir, cell_gene_expression_matrix, ordered_gene_ids, gRNA_indicator_matrix_fp, covariate_matrix, regularization_amount, cell_subset, seed, log_dir, B),
                       multi_processor)
 
   # Aggregate and return the results

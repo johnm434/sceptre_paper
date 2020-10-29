@@ -14,11 +14,11 @@ run_sceptre_at_scale(
   gRNA_indicator_matrix_fp,
   covariate_matrix,
   cell_subset = NULL,
+  regularization_amount = 3,
   pod_sizes = c(gene = 100, gRNA = 500, pair = 200),
   seed = 1234,
   log_dir = NULL,
   B = 500,
-  gene_sizes = NULL,
   multi_processor = TRUE
 )
 }
@@ -39,26 +39,31 @@ run_sceptre_at_scale(
 
 \item{covariate_matrix}{a dataframe containing the cell-specific covariates to use in the model}
 
-\item{cell_subset}{an integer vector identifying the cells to use}
+\item{cell_subset}{(optional) an integer vector identifying the cells to use}
+
+\item{regularization_amount}{(optional, default 3) a non-negative scalar value indicating the amount of regularization to apply to the estimated gene sizes. 0 corresponds to no regularization at all, and greater values correspond to more regularization.}
 
 \item{pod_sizes}{(optional) a named integer vector containing entries for "gene," "gRNA," and "pair." The entries specify the number of elements (gene, gRNAs, or pairs) to include per "pod." This purely is for computational purposes.}
 
 \item{seed}{(optional) seed to the conditional randomization test subroutine}
 
-\item{log_dir}{(optional) a file-path to the directory containing the log-files.}
+\item{log_dir}{(optional) a file-path to the directory containing the log-files. If NULL, print everything to the standard output (i.e., R console).}
 
 \item{B}{(optional, default 500) number of resamples to draw in CRT subroutine}
-
-\item{gene_sizes}{(optional) vector of known gene sizes}
 
 \item{mutli_processor}{(opitional boolean, default TRUE) should this function use multiple processors?}
 }
 \value{
-a dataframe containing the results (columns: gene, gRNA, p-value, BH-adjusted p-value)
+a dataframe containing the results (columns: gene, gRNA, p-value)
 }
 \description{
 This function runs SCEPTRE across many genes and gRNAs. The function recycles computation and leverages multiple processors to substantially increase execution speed.
 }
 \details{
 This function has the side-effect of saving the result dataframe in the results directory.
+}
+\examples{
+offsite_dir <- "/Volumes/tims_new_drive/research/sceptre_files"
+source("/Users/timbarry/Box/SCEPTRE/sceptre_paper/analysis_drivers_xie/sceptre_function_args.R")
+r <- run_sceptre_at_scale(gRNA_gene_pairs, gene_precomp_dir, gRNA_precomp_dir, results_dir, cell_gene_expression_matrix, ordered_gene_ids, gRNA_indicator_matrix_fp, covariate_matrix, cell_subset, regularization_amount, pod_sizes, seed, log_dir, B, multi_processor = TRUE)
 }

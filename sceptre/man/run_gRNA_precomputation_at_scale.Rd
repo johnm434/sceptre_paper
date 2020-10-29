@@ -9,8 +9,8 @@ run_gRNA_precomputation_at_scale(
   gRNA_precomp_dir,
   gRNA_indicator_matrix_fp,
   covariate_matrix,
-  cell_subset = NULL,
-  log_dir = NULL
+  cell_subset,
+  log_dir
 )
 }
 \arguments{

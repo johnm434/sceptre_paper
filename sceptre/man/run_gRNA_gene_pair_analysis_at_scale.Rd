@@ -13,10 +13,11 @@ run_gRNA_gene_pair_analysis_at_scale(
   ordered_gene_ids,
   gRNA_indicator_matrix_fp,
   covariate_matrix,
-  cell_subset = NULL,
-  seed = NULL,
-  log_dir = NULL,
-  B = 500
+  regularization_amount,
+  cell_subset,
+  seed,
+  log_dir,
+  B
 )
 }
 \arguments{
