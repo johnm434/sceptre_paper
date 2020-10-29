@@ -14,9 +14,9 @@
 #'
 #' @export
 #' @return a p-value of the null hypothesis of no gRNA effect on gene expression
-run_sceptre_using_precomp <- function(expressions, gRNA_indicators, gRNA_precomp, gene_precomp_size, gene_precomp_offsets, B, seed) {
+run_sceptre_using_precomp <- function(expressions, gRNA_indicators, gRNA_precomp, gene_precomp_size, gene_precomp_offsets, B, seed, alternative) {
   if (!is.null(seed)) set.seed(seed)
-
+  cat(paste0("Starting conditional randomization test for ", alternative, ".\n"))
   # compute the test statistic on the real data
   fit_star <- vglm(formula = expressions[gRNA_indicators == 1] ~ 1, family = negbinomial.size(gene_precomp_size), offset = gene_precomp_offsets[gRNA_indicators == 1])
   t_star <- summaryvglm(fit_star)@coef3["(Intercept)", "z value"]
@@ -39,11 +39,23 @@ run_sceptre_using_precomp <- function(expressions, gRNA_indicators, gRNA_precomp
   skew_t_fit <- tryCatch(selm(t_nulls ~ 1, family = "ST"), error = function(e) return(NA), warning = function(w) return(NA))
   if (class(skew_t_fit) == "selm") { # If the fit worked,
     dp <- skew_t_fit@param$dp # then extract the parameters.
-    if (!any(is.na(dp))) { # If all the fitted parameters are numbers,
-      p_value_skew_t <- pst(x = t_star, dp = dp) # then compute the skew t-based p-value.
+    if (!any(is.na(dp))) {
+      if (alternative == "less") {
+        p_value_skew_t <- pst(x = t_star, dp = dp)
+      } else if (alternative == "greater") {
+        p_value_skew_t <- 1-pst(x = t_star, dp = dp)
+      } else if (alternative == "two.sided") {
+        p_value_skew_t<- pst(x=-abs(t_star),dp=dp) + (1-pst(x=abs(t_star),dp=dp))
+      }
     }
   }
-  p_value_raw <- mean(c(-Inf, t_nulls) <= t_star)
+  if (alternative == "less") {
+    p_value_raw <- mean(c(-Inf, t_nulls) <= t_star)
+  } else if (alternative == "greater") {
+    p_value_raw <- mean(c(Inf, t_nulls) >= t_star)
+  } else if (alternative == "two.sided") {
+    p_value_raw <- mean(c(Inf,abs(t_nulls)) >= abs(t_star))
+  }
   out <- if (is.na(p_value_skew_t)) p_value_raw else p_value_skew_t
   return(out)
 }
@@ -95,14 +107,14 @@ run_sceptre_using_precomp <- function(expressions, gRNA_indicators, gRNA_precomp
 #' run_sceptre_gRNA_gene_pair(expressions = expressions,
 #' gRNA_indicators = gRNA_indicators,
 #' covariate_matrix = covariate_matrix)
-run_sceptre_gRNA_gene_pair <- function(expressions, gRNA_indicators, covariate_matrix, gene_precomp_size = NULL, B = 500, seed = NULL) {
+run_sceptre_gRNA_gene_pair <- function(expressions, gRNA_indicators, covariate_matrix, gene_precomp_size = NULL, B = 500, seed = NULL, alternative = "less") {
   cat(paste0("Running gRNA precomputation.\n"))
   gRNA_precomp <- run_gRNA_precomputation(gRNA_indicators, covariate_matrix)
 
   cat(paste0("Running gene precomputation.\n"))
   gene_precomp <- run_gene_precomputation(expressions, covariate_matrix, gene_precomp_size)
 
-  out <- run_sceptre_using_precomp(expressions = expressions, gRNA_indicators = gRNA_indicators, gRNA_precomp = gRNA_precomp, gene_precomp_size = gene_precomp$gene_precomp_size, gene_precomp_offsets = gene_precomp$gene_precomp_offsets, B = B, seed = seed)
+  out <- run_sceptre_using_precomp(expressions = expressions, gRNA_indicators = gRNA_indicators, gRNA_precomp = gRNA_precomp, gene_precomp_size = gene_precomp$gene_precomp_size, gene_precomp_offsets = gene_precomp$gene_precomp_offsets, B = B, seed = seed, alternative = alternative)
   return(out)
 }
 
